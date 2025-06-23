@@ -9,10 +9,11 @@
 
 account = {
         "user"      : 'your@login.com',
-        "password"  : 'your_password',
+        "password"  : 'your_password',  # Optional for offline mode
         "master"    : 'minecraft_name_who_the_bot_will_listen_to',
         "host"      : 'exampleserver.whatever.com',
-        "version"   : '1.16.5',
+        "auth"      : 'offline',  # 'offline' or 'microsoft'
+        "version"   : '1.20.4',   # Updated to support 1.20.4
 }
 
 #
