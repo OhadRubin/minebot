@@ -3,7 +3,7 @@
 # Main purpose is to handle relative to absolute coordinates
 #
 
-from botlib import *
+import lib.botlib as botlib
 
 # Area in front of chest+torch
 #   x is lateral (torch is 0)

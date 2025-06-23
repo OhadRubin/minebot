@@ -3,7 +3,7 @@
 #
 
 import time
-from botlib import *
+import lib.botlib as botlib
 
 foodList = [
   "Sweet Berries",
@@ -39,23 +39,23 @@ class Chest:
                 self.pybot.perror(f'Cant find any {chesttype} nearby.')
         self.container = None
 
-    def open(self):
+    async def open(self):
             if self.container:
                 return True
             #print(self.object)
-            self.container = self.pybot.bot.openContainer(self.object)
+            self.container = await self.pybot.bot.openContainer(self.object)
             if not self.container:
                 self.pybot.perror("Can't open chest.")
                 return False
             time.sleep(0.2)
             return True
 
-    def close(self):
-            self.container.close()
+    async def close(self):
+            await self.container.close()
             self.container = None
 
-    def spaceAvailable(self):
-        if self.open():
+    async def spaceAvailable(self):
+        if await self.open():
             chest_size = self.container.inventoryStart
             empty = chest_size
             # count empty slots in chest
@@ -66,8 +66,8 @@ class Chest:
         else:
             return 0
 
-    def printContents(self, debug_lvl=1):
-        if self.open():
+    async def printContents(self, debug_lvl=1):
+        if await self.open():
             self.pybot.pdebug(f'Chest contents:', debug_lvl)
             empty = True
             for i in self.container.containerItems():
@@ -95,10 +95,10 @@ class Chest:
 
         return count
 
-    def depositItem(self,item_type,count=None):
+    async def depositItem(self,item_type,count=None):
         itemObj = self.pybot.Item(item_type,1)
         item_name = itemObj.displayName
-        if self.spaceAvailable() < 2:
+        if await self.spaceAvailable() < 2:
             self.pybot.perror('chest is full')
             return False
         count_max = self.pybot.invItemCount(item_type)
@@ -110,7 +110,7 @@ class Chest:
 
         self.pybot.pdebug(f'  > {count:2} x {item_name}   ({item_type})',3)
         try:
-            newChest = self.container.deposit(item_type,None,count)
+            newChest = await self.container.deposit(item_type,None,count)
             if newChest:
                 self.container = newChest
         except Exception as e:
@@ -118,7 +118,7 @@ class Chest:
             return False
         return True
 
-    def withdrawItem(self,item_type,count=None):
+    async def withdrawItem(self,item_type,count=None):
         itemObj = self.pybot.Item(item_type,1)
         item_name = itemObj.displayName
         count_max = self.itemCount(item_type)
@@ -130,7 +130,7 @@ class Chest:
             
         self.pybot.pdebug(f'  < {count} x {item_name}   ({item_type})',3)
         try:
-            newChest = self.container.withdraw(item_type,None,count)
+            newChest = await self.container.withdraw(item_type,None,count)
             if newChest:
                 self.container = newChest
         except Exception as e:
@@ -142,11 +142,11 @@ class Chest:
     # - If whitelist is present, only deposit those items. Otherwise everything.
     # - If blacklist is present, do NOT depost those items.
 
-    def deposit(self, whitelist=[], blacklist=[]):
-        if not self.open():
+    async def deposit(self, whitelist=[], blacklist=[]):
+        if not await self.open():
             self.pybot.perror('Cant open chest to deposit Items.')
             return False
-        empty_slots = self.spaceAvailable()
+        empty_slots = await self.spaceAvailable()
         self.pybot.pdebug(f'Depositing ({empty_slots}/{self.container.inventoryStart} free):',3)
         itemList = self.pybot.bot.inventory.items()
         for i in itemList:
@@ -154,15 +154,15 @@ class Chest:
                 continue
             elif blacklist != [] and i.displayName in blacklist:
                 continue
-            self.depositItem(i.type)
+            await self.depositItem(i.type)
 
     # For any item on <itemList> make sure you have the right amount
     # - If too many, deposit
     # - If too few, take
     # Other items are ignored
 
-    def restock(self, itemList):
-        if not self.open():
+    async def restock(self, itemList):
+        if not await self.open():
             self.pybot.perror('Cant open chest to restock Items.')
             return False
 
@@ -188,7 +188,7 @@ class Chest:
                         count = min(i.count,dn)
                         #print(f'res {i.displayName} i:{n_inv} g:{n_goal} slt:{i.count} -> dep:{count}')
                         if count > 0:
-                            self.depositItem(i.type,count)
+                            await self.depositItem(i.type,count)
                             nothing = False
                             dn -= count
                         if dn == 0:
@@ -202,7 +202,7 @@ class Chest:
                         count = min(i.count,dn)
                         if count > 0:
                             #print(f'res {i.displayName} i:{n_inv} g:{n_goal} slt:{i.count} -> draw:{count}')
-                            self.withdrawItem(i.type,count)
+                            await self.withdrawItem(i.type,count)
                             nothing = False
                             dn -= count
                         if dn == 0:
@@ -281,7 +281,7 @@ class InventoryManager:
 
     # Print current inventory. Aggregate slots to numbers.
 
-    def printInventory(self):
+    async def printInventory(self):
         inventory = self.bot.inventory.items()
         iList = {}
         if inventory != []:
@@ -301,7 +301,7 @@ class InventoryManager:
             for i in iList:
                 self.pdebug(f'  {iList[i]:3} {i}',1)
         else:
-            self.bot.chat('empty')
+            await self.bot.chat('empty')
 
     #
     # Check if a specific item is in hand
@@ -335,7 +335,7 @@ class InventoryManager:
     # Returns name of the item in hand
     #
 
-    def wieldItem(self,item_arg):
+    async def wieldItem(self,item_arg):
 
         if not item_arg:
             self.perror("trying to equip item 'None'.")
@@ -361,7 +361,7 @@ class InventoryManager:
         # Try wielding 5 times
         for i in range(0,5):
             try:
-                self.bot.equip(item_type,"hand")
+                await self.bot.equip(item_type,"hand")
             except Exception as e:
                 hand_type, hand_name = self.itemInHand()
                 self.pexception(f'wieldItem() try #{i}. In hand {hand_name} vs {item_name}',e)
@@ -384,7 +384,7 @@ class InventoryManager:
     # Equip an item from a list of names
     #
 
-    def wieldItemFromList(self,iList):
+    async def wieldItemFromList(self,iList):
         if iList == None:
             print("error: equip list is empty.")
             return None
@@ -397,7 +397,7 @@ class InventoryManager:
         # find in inventory list
         for i in self.bot.inventory.items():
             if i.displayName in iList:
-                return self.wieldItem(i)
+                return await self.wieldItem(i)
 
         # check if we found it
         print("error: can't find a useful item to wield.")
@@ -411,7 +411,7 @@ class InventoryManager:
     # And it's also hard due to an issue in Mineflayer
     #
 
-    def updateSign(self,txt_arg,tryonly=False):
+    async def updateSign(self,txt_arg,tryonly=False):
 
         if type(txt_arg) is list:
             txt = txt_arg
@@ -429,7 +429,7 @@ class InventoryManager:
         dv = directionToVector(sign_block)
         p_against = subVec3(p_sign,dv)
 
-        self.safeWalk(Vec3(p_sign.x+0.5, self.bot.entity.position.y, p_sign.z+0.5),0.2)
+        await self.safeWalk(Vec3(p_sign.x+0.5, self.bot.entity.position.y, p_sign.z+0.5),0.2)
 
         # Mine up the sign
         sign_name = sign_block.displayName
@@ -438,18 +438,18 @@ class InventoryManager:
             sign_name = sign_name[0:p]+sign_name[p+5:]
 
         self.pdebug(f'Updating {sign_name} to "{txt[0]} {txt[1]}..."',2)
-        self.mineBlock(sign_block.position)
+        await self.mineBlock(sign_block.position)
         time.sleep(2)
 
-        if self.wieldItem(sign_name) != sign_name:
+        if await self.wieldItem(sign_name) != sign_name:
             return False
 
-        self.safePlaceBlock(p_against,dv)
+        await self.safePlaceBlock(p_against,dv)
 
         d = { "location": p_sign, "text1": txt[0], "text2": txt[1], "text3": txt[2], "text4": txt[3], }
 
         try:
-            r = self.bot._client.write('update_sign', d)
+            r = await self.bot._client.write('update_sign', d)
         except Exception as e:
             self.pexception("Updating text of sign",e)   
 
@@ -460,16 +460,16 @@ class InventoryManager:
     # Eat food, but only if hungry
     #
 
-    def eatFood(self):
+    async def eatFood(self):
         # Check if hungry
         if self.bot.food > 18:
             return True
 
         # Wield food in hand
-        foodname = self.wieldItemFromList(foodList)
+        foodname = await self.wieldItemFromList(foodList)
         if foodname:
             self.pdebug(f'eating food {foodname}',3)
-            self.bot.consume()
+            await self.bot.consume()
             return True
         else:
             self.pdebug(f'food level {int(100*self.bot.food/20)}, but no food in inventory!',1)
@@ -519,36 +519,36 @@ class InventoryManager:
     # - If whitelist is present, only deposit those items. Otherwise everything.
     # - If blacklist is present, do NOT depost those items.
 
-    def depositToChest(self, whitelist=[], blacklist=[]):
+    async def depositToChest(self, whitelist=[], blacklist=[]):
         chest = Chest(self)
-        chest.deposit(whitelist,blacklist)
-        chest.close()
+        await chest.deposit(whitelist,blacklist)
+        await chest.close()
 
     #
     # Find closest chest and restock from it according to the list
     #
 
-    def restockFromChest(self, itemList):
+    async def restockFromChest(self, itemList):
         
         # If we have both cart and chest we deposit into cart
         # and then restock from chest
         cart = Chest(self,"Minecart with Chest",silent=True)
         if cart.object:
-            cart.restock(itemList)
-            cart.close()
+            await cart.restock(itemList)
+            await cart.close()
             time.sleep(1)
         chest = Chest(self)
-        chest.restock(itemList)
-        chest.close()
+        await chest.restock(itemList)
+        await chest.close()
 
     #
     #  Transfer all of the content of the closest chest, to the destination chest
     #
 
-    def transferToChest(self, target):
+    async def transferToChest(self, target):
 
         c1 = Chest(self)
-        if c1.block == None:
+        if c1.object == None:
             self.perror("Can't transfer chest contents - no chest found near starting point")
             return False
 
@@ -557,25 +557,25 @@ class InventoryManager:
         while not self.stopActivity:
 
             # Pick up from the source chest
-            c1.open()
+            await c1.open()
             self.pdebug("Taking:",3)
             slots = 0
-            for i in c1.chestObj.containerItems():
+            for i in c1.container.containerItems():
                 if i.count > 0:
-                    c1.withdrawItem(i.type,i.count)
+                    await c1.withdrawItem(i.type,i.count)
                     time.sleep(0.2)
                     slots += 1
                     if slots > 27:
                         break
-            c1.close()
+            await c1.close()
 
             if slots == 0:
                 print(f'  nothing left')
                 break
 
             # Drop all into the destination chest
-            self.gotoLocation(target)
-            self.depositToChest()
-            self.safeWalk(chest_block.position)
+            await self.gotoLocation(target)
+            await self.depositToChest()
+            await self.safeWalk(c1.object.position)
 
         self.stopActivity()

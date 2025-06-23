@@ -33,8 +33,7 @@ if __name__ == "__main__":
         thread = threading.Thread(target=run_async)
         thread.start()
 
-    
-    # Keep the program running
-    while True:
+    for i in range(1, 31):
         time.sleep(1)
+    print("Finished mining")
 

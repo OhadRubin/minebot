@@ -2,9 +2,9 @@
 # Gathering Functionality for the bot
 #
 
-from inventory import *
-from botlib import *
-from workarea import *
+# from inventory import * - removed wildcard import
+import lib.botlib as botlib
+from lib.workarea import workArea
 
 class BoundingBox:
 

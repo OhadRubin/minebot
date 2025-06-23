@@ -4,9 +4,11 @@
 
 import time
 import datetime
-import botlib
+import lib.botlib as botlib
+import asyncio
+import threading
 
-from javascript import require, On, Once, AsyncTask, once, off
+from javascript import require, once, off
 pathfinder = require('mineflayer-pathfinder')
 
 class ChatBot:
@@ -63,13 +65,13 @@ class ChatBot:
         self.dangerType = None 
         self.speedMode = False
 
-    def endActivity(self):
+    async def endActivity(self):
         if self.activity_major:
             t_str = botlib.myTime()
             d_str = str(datetime.timedelta(seconds=int(time.time()-self.activity_start)))
             self.pdebug(f'Activity {self.activity_name} ended at {t_str} (duration: {d_str})',1)
             self.bot.clearControlStates('sneak', False)
-            self.eatFood()
+            await self.eatFood()
         self.activity_last_duration = d_str
         self.bot.stopActivity = True
         self.activity_major = False
@@ -84,23 +86,23 @@ class ChatBot:
     def stopThis(self):
         self.stopActivity = True
 
-    def sleepInBed(self):
+    async def sleepInBed(self):
         bed = self.findClosestBlock("White Bed",xz_radius=3,y_radius=1)
         if not bed:
             self.chat('cant find a White Bed nearby (I only use those)')
         else:
-            self.bot.sleep(bed)
+            await self.bot.sleep(bed)
             self.chat('good night!')
 
-    def wakeUp(self):
-            self.bot.wake()
+    async def wakeUp(self):
+            await self.bot.wake()
             self.chat('i woke up!')
 
     def exitGame(self):
             # exit the game
-            off(self.bot, 'chat', onChat)
+            self.bot.quit()
 
-    def handleChat(self,sender, message, this, *rest):
+    async def handleChat(self,sender, message, this, *rest):
 
         # check if order is incorrect to fix a bug we are seeing between Guido and Daniel
         if type(sender) != type(""):
@@ -119,9 +121,9 @@ class ChatBot:
         elif sender != self.bossPlayer():
             return
 
-        self.handleCommand(message,sender)
+        await self.handleCommand(message,sender)
 
-    def handleCommand(self, message, sender):
+    async def handleCommand(self, message, sender):
 
         # Handle standard commands
 
@@ -138,17 +140,43 @@ class ChatBot:
                     self.pdebug(f'*** error: major activity in progress, stop it first {self.activity_name}.')
                     return
                 self.startActivity(c[1])
-                @AsyncTask(start=True)
-                def asyncActivity(task):
+                def run_activity():
+                    # For major activities, we need to handle potential async functions
+                    async def run_async_activity():
+                        if c[3] > 0:
+                            if asyncio.iscoroutinefunction(call_function):
+                                await call_function(args)
+                            else:
+                                call_function(args)
+                        else:
+                            if asyncio.iscoroutinefunction(call_function):
+                                await call_function()
+                            else:
+                                call_function()
+                    
+                    if asyncio.iscoroutinefunction(call_function):
+                        asyncio.run(run_async_activity())
+                    else:
+                        if c[3] > 0:
+                            call_function(args)
+                        else:
+                            call_function()
+                
+                activity_thread = threading.Thread(target=run_activity)
+                activity_thread.start()
+            else:
+                # Check if the function is async (based on known async methods)
+                async_methods = {'sleepInBed', 'wakeUp'}
+                if call_function.__name__ in async_methods:
+                    if c[3] > 0:
+                        await call_function(args)
+                    else:
+                        await call_function()
+                else:
                     if c[3] > 0:
                         call_function(args)
                     else:
                         call_function()
-            else:
-                if c[3] > 0:
-                    call_function(args)
-                else:
-                    call_function()
             return
 
         # Legacy commands, need to clean up
@@ -166,9 +194,14 @@ class ChatBot:
                 self.chat("I don't see you!")
                 return
             pos = target.position
-            @AsyncTask(start=True)
-            def doCome(task):
-                self.walkTo(pos.x, pos.y, pos.z)
+            async def run_come():
+                await self.walkTo(pos.x, pos.y, pos.z)
+            
+            def run_come_sync():
+                asyncio.run(run_come())
+            
+            come_thread = threading.Thread(target=run_come_sync)
+            come_thread.start()
 
         if 'follow' in message:
             if message == 'follow':
@@ -181,28 +214,43 @@ class ChatBot:
             if not target:
                 self.chat("I don't see you!")
                 return
-            @AsyncTask(start=True)
-            def follow(task):
+            async def run_follow():
                 while self.stopActivity != True:
                     self.bot.pathfinder.setGoal(pathfinder.goals.GoalFollow(player.entity, 1))
                     time.sleep(2)
+            
+            def run_follow_sync():
+                asyncio.run(run_follow())
+            
+            follow_thread = threading.Thread(target=run_follow_sync)
+            follow_thread.start()
 
         if message.startswith('moveto'):
             args = message[6:].split()
             if len(args) != 1:
                 self.chat('Need name of location to move to.')
                 return
-            @AsyncTask(start=True)
-            def doMoveTo(task):
-                gotoLocation(self.bot,args[0])
+            async def run_moveto():
+                await self.gotoLocation(args[0])
+            
+            def run_moveto_sync():
+                asyncio.run(run_moveto())
+            
+            moveto_thread = threading.Thread(target=run_moveto_sync)
+            moveto_thread.start()
 
         if message.startswith('transfer to'):
             args = message[11:].split()
             if len(args) != 1:
                 self.chat('Need name of target chest.')
                 return
-            @AsyncTask(start=True)
-            def doTransfer(task):
-                transferToChest(self.bot,args[0])
+            async def run_transfer():
+                await self.transferToChest(args[0])
+            
+            def run_transfer_sync():
+                asyncio.run(run_transfer())
+            
+            transfer_thread = threading.Thread(target=run_transfer_sync)
+            transfer_thread.start()
 
 

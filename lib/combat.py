@@ -2,9 +2,9 @@
 # Functions for running away
 #
 
-from javascript import require, On, Once, AsyncTask, once, off
-from botlib import *
-
+from javascript import require, once, off
+import lib.botlib as botlib
+import time
 import sys
 
 class CombatBot:
@@ -49,7 +49,7 @@ class CombatBot:
 
         # Check for air
 
-    def healToFull(self):
+    async def healToFull(self):
         if self.bot.health == 20 and self.bot.food > 18:
             return
         self.healMode = True
@@ -59,7 +59,7 @@ class CombatBot:
             if self.bot.health > h:
                 self.pdebug(f'  health: {int(100*self.bot.health/20)}%   food: {int(100*self.bot.food/20)}%',3)
                 h = self.bot.health
-            if not self.eatFood():
+            if not await self.eatFood():
                 break
             time.sleep(2)
         self.pdebug(f'  health: {int(100*self.bot.health/20)}%   food: {int(100*self.bot.food/20)}%',3)

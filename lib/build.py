@@ -3,14 +3,14 @@
 #
 
 from javascript import require
-from botlib import *
+import lib.botlib as botlib
 
 Vec3     = require('vec3').Vec3
 
-from blueprint import *
-from workarea import *
+from lib.blueprint import *
+from lib.workarea import workArea
 
-import blueprint_data
+import lib.blueprint_data as blueprint_data
 
 #
 # Main class that has the build, analyze and helper functions

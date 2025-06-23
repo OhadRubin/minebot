@@ -6,19 +6,20 @@
 #
 
 import javascript
-from javascript import require, On, Once, AsyncTask, once, off
+from javascript import require, once, off
 import time
 import asyncio
 import argparse
 
-from inventory import *
-from movement import *
-from farming import *
-from mine import *
-from build import *
-from chat import *
-from combat import *
-from gather import *
+from lib.inventory import InventoryManager
+from lib.movement import MovementManager
+from lib.farming import FarmBot
+from lib.mine import MineBot
+from lib.build import BuildBot
+from lib.chat import ChatBot
+from lib.combat import CombatBot
+from lib.gather import GatherBot
+from src.bot import create_bot
 
 
 #
@@ -42,30 +43,38 @@ class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementM
 
         self.speedMode = False # Move fast 
 
-        mineflayer = require('mineflayer')
-
-        bot = mineflayer.createBot(
-            {
-            'host'    : self.account['host'],
+        # Create bot using working wrapper
+        options = {
+            'host': self.account['host'],
+            'port': self.account.get('port', 25565),
             'username': self.account['user'],
-            'password': self.account['password'],
+            'auth': 'microsoft' if 'password' in self.account else 'offline',
             'version': self.account['version'],
             'hideErrors': False,
-            } )
-
-        self.mcData   = require('minecraft-data')(bot.version)
-        self.Block    = require('prismarine-block')(bot.version)
-        self.Item     = require('prismarine-item')(bot.version)
-        self.Vec3     = require('vec3').Vec3
-
-        # Setup for the pathfinder plugin
-        pathfinder = require('mineflayer-pathfinder')
-        bot.loadPlugin(pathfinder.pathfinder)
-        # Create a new movements class
-        movements = pathfinder.Movements(bot, self.mcData)
-        movements.blocksToAvoid.delete(self.mcData.blocksByName.wheat.id)
-        bot.pathfinder.setMovements(movements)
-        self.bot = bot
+        }
+        if 'password' in self.account:
+            options['password'] = self.account['password']
+        
+        self.bot = create_bot(options)
+        
+        # Access JavaScript objects through the bot wrapper
+        self.mcData = self.bot.mc_data
+        # Import Vec3 at module level like in working src/bot.py
+        from src.bot import Vec3
+        self.Vec3 = Vec3
+        
+        # TODO: Original JavaScript setup - may need to restore some functionality:
+        # mineflayer = require('mineflayer')
+        # bot = mineflayer.createBot({...})
+        # self.mcData   = require('minecraft-data')(bot.version)
+        # self.Block    = require('prismarine-block')(bot.version)
+        # self.Item     = require('prismarine-item')(bot.version)
+        # self.Vec3     = require('vec3').Vec3
+        # pathfinder = require('mineflayer-pathfinder')
+        # bot.loadPlugin(pathfinder.pathfinder)
+        # movements = pathfinder.Movements(bot, self.mcData)
+        # movements.blocksToAvoid.delete(self.mcData.blocksByName.wheat.id)
+        # bot.pathfinder.setMovements(movements)
 
         # Initialize modules
         # Python makes this hard as __init__ of mixin classes is not called automatically
@@ -142,11 +151,11 @@ if __name__ == "__main__":
     argsd = vars(args)
 
     # Import credentials and server info, create the bot and log in
-    from account import account
+    from lib.account import account
     if  argsd["nowindow"]:
         pybot = PyBot(account.account)
     else:
-        from ui import PyBotWithUI
+        from lib.ui import PyBotWithUI
         pybot = PyBotWithUI(account.account)
     pybot.pdebug(f'Connected to server {account.account["host"]}.',0)
     if 'verbose' in argsd:
@@ -164,17 +173,21 @@ if __name__ == "__main__":
     while not pybot.bot.health:
         time.sleep(1)
 
-    @On(pybot.bot, 'chat')
-    def onChat(sender, message, this, *rest):
+    @pybot.bot.on_chat
+    def handle_chat(sender, message, this, *rest):
         pybot.handleChat(sender, message, this, *rest)
 
-    @On(pybot.bot, 'health')
-    def onHealth(arg):
+    @pybot.bot.on_health
+    def handle_health(arg):
         pybot.healthCheck()
 
-    @AsyncTask(start=True)
-    def asyncInitialHeal(task):
-        pybot.healToFull()
+    # Initial healing - run in a separate thread since it may take time
+    def run_initial_heal():
+        asyncio.run(pybot.healToFull())
+    
+    import threading
+    heal_thread = threading.Thread(target=run_initial_heal)
+    heal_thread.start()
 
     if pybot.debug_lvl >= 4:
         pybot.printInventory()

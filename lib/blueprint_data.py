@@ -5,7 +5,7 @@
 from javascript import require
 Vec3     = require('vec3').Vec3
 
-from blueprint import SpecialBuild, Blueprint
+from lib.blueprint import SpecialBuild, Blueprint
 
 
 # Test Blueprint 1x2x1

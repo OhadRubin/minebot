@@ -6,9 +6,8 @@ from javascript import require
 Vec3       = require('vec3').Vec3
 pathfinder = require('mineflayer-pathfinder')
 
-from inventory import *
-from botlib import *
-from workarea import *
+from lib.workarea import workArea
+import lib.botlib as botlib
 import time
 
 class FarmBot:

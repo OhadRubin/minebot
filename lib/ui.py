@@ -10,12 +10,13 @@ import sys
 import time
 import datetime
 from functools import partial
-from javascript import require, On, Once, AsyncTask, once, off
+from javascript import require, once, off
+import threading
 Vec3     = require('vec3').Vec3
 
-from pybot import PyBot
-from mine import MineBot
-import botlib
+from lib.pybot import PyBot
+from lib.mine import MineBot
+import lib.botlib as botlib
 
 
 # Pygame UI Color and Font constants
@@ -607,9 +608,11 @@ class PyBotWithUI(PyBot):
         self.running = True
         self.clock = pygame.time.Clock()
         
-        @AsyncTask(start=True)
-        def doRefresher(task):
+        def run_refresher():
             self.refresherJob()
+        
+        refresher_thread = threading.Thread(target=run_refresher, daemon=True)
+        refresher_thread.start()
 
         while self.running:
             for event in pygame.event.get():
