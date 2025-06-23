@@ -3,10 +3,10 @@
 #
 
 import itertools
-
+import javascript
 from javascript import require
 Vec3     = require('vec3').Vec3
-
+import time
 import lib.botlib as botlib
 from lib.workarea import workArea
 
@@ -151,7 +151,7 @@ class MineBot:
             v = x
         else:
             v = Vec3(x,y,z)
-        
+
         b = self.bot.blockAt(v)
 
         self.pdebug(f'    mine block   ({v.x},{v.y},{v.z}) {b.displayName} t:{b.digTime(274)}',3)
@@ -191,11 +191,9 @@ class MineBot:
                 if b.digTime(274) == 0:
                     return 1
         else:
-            #print(f'  ignore ({x},{y},{z}) {b.displayName}')
+            # print(f'  ignore ({x},{y},{z}) {b.displayName}')
             return 0
 
-
-    
     #
     # Mine a 1-wide path from start to end of height height
     # Assumes the bot is at start
@@ -281,7 +279,9 @@ class MineBot:
             return False
 
         area = workArea(self,1,1,1,notorch=True)
-        if not area.valid:
+
+
+        if not await area.initialize():
             return False
         start = area.start
 
@@ -331,7 +331,6 @@ class MineBot:
                 await self.walkTo(row_c)
                 await self.minePath(row_c,Vec3(row_c.x+dx_max,row_c.y,row_c.z),height, area=area)
 
-
             if self.stopActivity:
                 break
 
@@ -377,15 +376,16 @@ class MineBot:
                 await self.bridgeBlock(v_place,area.forwardVector)
                 if area.blockAt(x,-1,z).displayName not in self.dangerBlocks:
                     break
-            else:                            
-                self.perror(f'*** fatal error. Cant bridge dangerous block {area.blockAt(x,-1,z).displayName}')
+            else:
+                self.perror(
+                    f"*** fatal error. Cant bridge dangerous block {area.blockAt(x,-1,z).displayName}"
+                )
                 area.status = "blocked/drop"
                 self.stopActivity = True
                 return False
             area.blocks_mined += 1
         return True
 
-    
     #
     # Mine up a column of a specific height
     # Bridge afterwards if needed.
@@ -427,19 +427,19 @@ class MineBot:
                     area.blocks_mined += 1
             if done:
                 break
-                    
+
         for y in range(0,height):                      
             if area.blockAt(x,y,z).displayName not in self.ignored_blocks:
                 self.perror(f'aborting - block not cleared: {area.blockAt(x,y,z).displayName}.')
                 area.status = "blocked"
                 self.stopActivity = True
                 return False
-                
+
         return True
 
-#
-# Check for goodies in the floor. Works best to about 2 deep.
-#
+    #
+    # Check for goodies in the floor. Works best to about 2 deep.
+    #
 
     async def floorMine(self, area, x, z, depth):
         if self.stopActivity: return False
@@ -483,7 +483,7 @@ class MineBot:
     #
 
     async def mineRow(self, area, max_x, height, z, floor_mine=0, ceiling_mine=0):
-        #print(f'mineRow(max_x:{max_x},height:{height},z:{z},floor_mine:{floor_mine},ceiling_mine:{ceiling_mine})')
+        # print(f'mineRow(max_x:{max_x},height:{height},z:{z},floor_mine:{floor_mine},ceiling_mine:{ceiling_mine})')
         if max_x == 0:
             return False
         elif max_x < 0:
@@ -511,9 +511,9 @@ class MineBot:
                 self.wieldItemFromList(self.fillBlocks)
                 await self.bridgeBlock(v_place,area.dirToWorldV3(Vec3(dx,0,0)))
                 if area.blockAt(x,-1,z).displayName in self.dangerBlocks:
-                        self.pdebug(f'    cant reach, bridging failed {area.blockAt(x,-1,z).displayName}.',2)
-                        await area.walkToBlock3(0,0,z)
-                        return False
+                    self.pdebug(f'    cant reach, bridging failed {area.blockAt(x,-1,z).displayName}.',2)
+                    await area.walkToBlock3(0,0,z)
+                    return False
             if not self.mining_safety_check(area.toWorld(x,0,z)): return False
             await area.walkToBlock3(x,0,z)
         time.sleep(0.5)
@@ -522,24 +522,28 @@ class MineBot:
     # Helper function for UI
 
     def mineActivity(self,area,z,txt1="",txt2=""):
-            l = [
+        l = [
                     f'Depth: {z}    ⏱️ {int(100*(area.blocks_mined-area.last_break)/area.break_interval)}%',
                     f'Status: {area.status}', 
                     txt1,
                     txt2
                 ]
-            self.refreshActivity(l)
+        self.refreshActivity(l)
 
     #
     #  Build a strip mine of a specific height and width and light it up
     #
 
     async def stripMine(self,width=3,height=3,valrange=3):
+        # print(
+        #     javascript.eval_js("""bot.findBlock({ matching: [bot.registries.blocksByName["Chest"].id], maxDistance: 16, count: 1, })""")
+        # )
+        # print("Done")
 
         z_torch = 0
         z =0
         area = workArea(self,width,height,99999)
-        if not area.valid:
+        if not await area.initialize():
             return False
         self.speedMode = True   # explore fast until we find something
 
@@ -574,8 +578,8 @@ class MineBot:
                     await self.mineColumn(area, x, z, height)
                     await self.floorMine(area, x, z, 2)
                     await self.ceilingMine(area, x, z, height+2)
-                    
-                # Step 2 - Bridge if needed 
+
+                # Step 2 - Bridge if needed
                 for x in area.xRange():
                     await self.bridgeIfNeeded(area, x, z)
                 if self.stopActivity: break
@@ -627,7 +631,6 @@ class MineBot:
         # Mining ended
         area.restock(self.miningEquipList)
 
-
     #
     # Mine a vertical shaft of N x N down to depth D
     #
@@ -644,7 +647,7 @@ class MineBot:
             return False
 
         area = workArea(self,d,d,1,notorch=True)
-        if not area.valid:
+        if not await area.initialize():
             return False
         start = area.start
         area.restock(self.miningEquipList)
@@ -676,7 +679,6 @@ class MineBot:
         # Mining ended - no deposit as we may not be able to get up the shaft
 
         return True
-     
 
     async def doMining(self,args):
 

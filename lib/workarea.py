@@ -1,9 +1,9 @@
-#
 # Definition of a work area to do stuff in (e.g. build, mine etc.)
 # Main purpose is to handle relative to absolute coordinates
 #
 
 import lib.botlib as botlib
+from lib.botlib import strDirection, addVec3, subVec3, lenVec3
 
 # Area in front of chest+torch
 #   x is lateral (torch is 0)
@@ -29,6 +29,7 @@ class workArea:
     def __init__(self,pybot,width,height,depth, notorch=False):
         self.valid = False
         self.pybot = pybot
+        self.notorch = notorch
 
         if width % 2 != 1:
             self.pybot.perror(f'Error: width={width} but only odd width work areas are supported.')
@@ -38,15 +39,17 @@ class workArea:
         self.width2 = int((width-1)/2)
         self.height = height
         self.depth = depth
-        # bot.findBlocks({ matching: [bot.registry.blocksByName["chest"].id], maxDistance: 128, count: 10 })
 
-        self.start_chest = pybot.findClosestBlock("Chest", xz_radius=6, y_radius=20)
-
-        if not self.start_chest:
-            self.pybot.chat("Can't find starting position. Place a chest on the ground to mark it.")
-            return None
-
-        if notorch:
+    async def initialize(self):
+        """Async initialization that finds chest and torch"""
+        # Find the starting chest
+        # self.start_chest = await self.pybotk( # 
+        # self.start_chest = await self.pybot.findClosestBlock( 
+        #     "Chest", xz_radius=6, y_radius=20
+        # )
+        # print(f"{self.start_chest=}")
+        assert not self.notorch, "Not yet implemented"
+        if self.notorch:
             # Area with arbitrary direction, we pick point in front of chest
             p = self.start_chest.getProperties()
             self.d = strDirection(p["facing"])
@@ -55,49 +58,122 @@ class workArea:
             # Origin
             self.origin = self.start
 
+        print("starting findBlocks")
+        print(self.pybot.bot.js_bot.entity.position)
+        torch_ids = (
+            self.pybot.bot.displayname_to_id["Redstone Torch"]
+            + self.pybot.bot.displayname_to_id["Torch"]
+        )
+        torch_blocks = self.pybot.bot.js_bot.findBlocks(
+            {
+                "matching": torch_ids,
+                "maxDistance": 100,
+                "count": 200,
+            },
+        )
+        torch_blocks = list(iter(torch_blocks))
+
+        chest_blocks = self.pybot.bot.js_bot.findBlocks(
+            {
+                "matching": self.pybot.bot.displayname_to_id["Chest"],
+                "maxDistance": 100,
+                "count": 200,
+            },
+        )
+        chest_blocks = list(iter(chest_blocks))
+        print(f"{len(chest_blocks)=}")
+        print(f"{len(torch_blocks)=}")
+        self.start_chest = None
+        for chest in chest_blocks:
+            for torch in torch_blocks:
+                if chest is None or torch is None:
+                    continue
+                d = subVec3(chest, torch)
+                L = lenVec3(d)
+                print(f"{chest}, {torch}, {L=}")
+                if L == 1 and chest.y == torch.y:
+                    self.start_chest = chest
+                    self.start_torch = torch
+                    break
+
+            # if chest.position.distanceTo(torch.position) < 1 and chest.position.y == torch.position.y:
+            if self.start_chest:
+                break
         else:
-            # Determine "forward" direction from chest+torch
-            torch   = pybot.findClosestBlock("Torch",xz_radius=3,y_radius=1)
-            r_torch = pybot.findClosestBlock("Redstone Torch",xz_radius=3,y_radius=1)
+            self.pybot.chat(
+                "Can't find starting position. Place a chest and torch on the ground to mark the direction."
+            )
+            assert False, "crashing"
 
-            # Redstone Torch has precedence
-            if r_torch:
-                self.start_torch = r_torch
-            else:
-                self.start_torch = torch
+        # if not self.start_chest:
+        #     self.pybot.chat("Can't find starting position. Place a chest on the ground to mark it.")
+        #     return False
 
-            if not self.start_torch:
-                self.pybot.chat("Can't find starting position. Place chest, and torch on the ground next to it to mark the direction.")
-                return None
+        # else:
 
-            if self.start_torch.position.y != self.start_chest.position.y:
-                self.pybot.chat("Can't find starting position. Chest and torch at different levels??")
-                return None
+        # Determine "forward" direction from chest+torch
+        # torch = await self.pybot.findClosestBlock("Torch", xz_radius=6, y_radius=20)
+        # r_torch = await self.pybot.findClosestBlock(
+        #     "Redstone Torch", xz_radius=6, y_radius=20
+        # )
 
-            # Direction of the Area
-            self.d = subVec3(self.start_torch.position, self.start_chest.position)
-            if lenVec3(self.d) != 1:
-                self.pybot.chat("Can't find starting position. Torch is not next to chest.")
-                return None
+        # # Redstone Torch has precedence
+        # if r_torch:
+        #     self.start_torch = r_torch
+        # else:
+        #     self.start_torch = torch
 
-            self.start = self.start_chest.position
+        # print(f"{self.start_torch=}")
 
-            # Origin
-            self.origin = Vec3(self.start.x+2*self.d.x,self.start.y,self.start.z+2*self.d.z)
+        # if not self.start_torch:
+        #     self.pybot.chat("Can't find starting position. Place chest, and torch on the ground next to it to mark the direction.")
+        #     return False
+
+        # if self.start_torch.position.y != self.start_chest.position.y:
+        #     self.pybot.chat("Can't find starting position. Chest and torch at different levels??")
+        #     return False
+
+        # Direction of the Area
+
+        # torch_blocks = await self.pybot.bot.js_bot.findBlocks(
+        #     {
+        #         "matching": [
+        #             self.pybot.bot.displayname_to_id["Redstone Torch"],
+        #             self.pybot.bot.displayname_to_id["Torch"],
+        #         ],
+        #         "maxDistance": 10,
+        #         "count": 10,
+        #     }
+        # )
+        # print(f"{torch_blocks=}")
+
+        self.d = subVec3(self.start_torch, self.start_chest)
+        # if lenVec3(self.d) != 1:
+        #     self.pybot.chat("Can't find starting position. Torch is not next to chest.")
+        #     return False
+
+        self.start = self.start_chest # findBlocks actually returns a Vec3 so it's already a position
+        # self.start = self.start_chest.position 
+
+        # Origin
+        self.origin = self.pybot.Vec3(
+            self.start.x + 2 * self.d.x, self.start.y, self.start.z + 2 * self.d.z
+        )
 
         # Vector directions
         self.forwardVector = self.d
-        self.backwardVector = invVec3(self.d)
+        self.backwardVector = botlib.invVec3(self.d)
 
         # Note that we flip build area vs. world coordinates. Left Handed vs Right handed.
-        self.leftVector = rotateLeft(self.d)
-        self.rightVector = rotateRight(self.d)
+        self.leftVector = botlib.rotateLeft(self.d)
+        self.rightVector = botlib.rotateRight(self.d)
 
         self.latx = self.rightVector.x
         self.latz = self.rightVector.z
 
         # Done. Set flag.
         self.valid = True
+        return True
 
     def xRange(self):
         return range(-self.width2, self.width2+1)
@@ -109,21 +185,21 @@ class workArea:
         return range(0,self.depth)
 
     def toWorld(self,x,y,z):
-        return Vec3(self.origin.x+self.latx*x+self.d.x*z,
+        return self.pybot.Vec3(self.origin.x+self.latx*x+self.d.x*z,
                     self.origin.y+y,
                     self.origin.z+self.latz*x+self.d.z*z)
 
     # Convert position relative to absolute coordinates
 
     def toWorldV3(self,v):
-        return Vec3(self.origin.x+self.latx*v.x+self.d.x*v.z,
+        return self.pybot.Vec3(self.origin.x+self.latx*v.x+self.d.x*v.z,
                     self.origin.y+v.y,
                     self.origin.z+self.latz*v.x+self.d.z*v.z)
 
     # Convert direction relative to absolute coordinates
 
     def dirToWorldV3(self,v):
-        return Vec3(self.latx*v.x+self.d.x*v.z,
+        return self.pybot.Vec3(self.latx*v.x+self.d.x*v.z,
                     v.y,
                     self.latz*v.x+self.d.z*v.z)
 

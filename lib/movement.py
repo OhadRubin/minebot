@@ -51,7 +51,7 @@ class MovementManager:
             return False
         t = walkTime(toPosition,self.bot.entity.position)
         if not self.speedMode:
-             time.sleep(t)
+            time.sleep(t)
         return True
 
     async def walkTo(self,x,y=None,z=None):
@@ -86,7 +86,6 @@ class MovementManager:
             v = Vec3(x+0.5,y,z+0.5)
             await self.safeWalk(v,0.3)
 
-
     # Walks on top of this block
 
     async def walkOnBlock(self,x,y=None,z=None):
@@ -99,7 +98,6 @@ class MovementManager:
         else:
             v = Vec3(x+0.5,y+1,z+0.5)
             await self.safeWalk(v)
-
 
     # this will attempt to walk on to block at v, and place a block in the direction d
 
@@ -178,28 +176,34 @@ class MovementManager:
             target = [target]
 
         # Search larger and larger rectangles
+        
+
+
 
         for r in range(0,xz_radius+1):
-            for dx, dz in rectangleBorder(r,r):
+            for dx, dz in botlib.rectangleBorder(r, r):
                 for dy in range(-y_radius,y_radius+1):
-                        b = await self.bot.blockAt(Vec3(p.x+dx,p.y+dy,p.z+dz))
-                        #print(dx,dy,dz,b.displayName,target)
-                        if b.displayName in target:
-                            if metadata and b.metadata != metadata:
+                    b = self.bot.block_at(Vec3(p.x + dx, p.y + dy, p.z + dz))
+                    if not b:
+                        continue
+                    # print(dx,dy,dz,b.displayName,target)
+                    if b.displayName in target:
+                        if metadata and b.metadata != metadata:
+                            continue
+                        if spaceabove:
+                            b_above = self.bot.block_at(
+                                Vec3(p.x + dx, p.y + dy + 1, p.z + dz)
+                            )
+                            if not b_above or b_above.type != 0:
                                 continue
-                            if spaceabove:
-                                b_above = await self.bot.blockAt(Vec3(p.x+dx,p.y+dy+1,p.z+dz))
-                                if not b_above or b_above.type != 0:
-                                    continue
-                            dist = sqrt(dx*dx+dy*dy+dz*dz)
-                            # print("Found at ",v," distance ",dist)
-                            if best_block == None or best_dist > dist:
-                                best_block = b
-                                best_dist = dist
+                        dist = sqrt(dx * dx + dy * dy + dz * dz)
+                        # print("Found at ",v," distance ",dist)
+                        if best_block == None or best_dist > dist:
+                            best_block = b
+                            best_dist = dist
             if best_block:
                 return best_block
         return False
-
 
     async def gotoLocation(self,l):
         if not l in self.myLocations:

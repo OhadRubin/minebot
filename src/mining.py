@@ -249,7 +249,9 @@ class WorkArea:
             'matching': [self.bot.js_bot.registry.blocksByName["chest"].id],
             'maxDistance': 128,
             'count': 1
-        })
+        },
+        # useExtraInfo=False
+        )
         chest_pos = chest_blocks[0] if chest_blocks else None
         
         if not chest_pos:

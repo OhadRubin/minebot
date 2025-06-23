@@ -30,6 +30,7 @@ from javascript import require, On
 # Expose commonly used JS classes
 Vec3 = require('vec3').Vec3
 # Location = require('prismarine-viewer').mineflayer.Location
+from collections import defaultdict
 
 class Bot:
     """A unified, flattened interface for all Mineflayer bot functionality."""
@@ -38,6 +39,17 @@ class Bot:
         """Creates a new Mineflayer bot instance."""
         self.bot = require('mineflayer').createBot(options)
         self.mc_data = require('minecraft-data')(self.bot.version)
+        blocksByName = self.bot.registry.blocksByName
+        # blocksByName = iter(blocksByName)
+        # print(dir(blocksByName))
+        keys = iter(blocksByName)
+        bbn = {k: self.bot.registry.blocksByName[k] for k in keys}
+        displayname_to_id = defaultdict(list)
+        for k,v in bbn.items():
+            displayname_to_id[v.displayName].append(v.id)
+        self.displayname_to_id = displayname_to_id
+        # self.displayname_to_id = {v.displayName: v.id }
+        # self.items = {v.displayName:v for k,v in self.bot.registry.itemsByName.items()}
 
     # ========================================
     # CORE & API ACCESS
@@ -56,76 +68,145 @@ class Bot:
     # PROPERTIES
     # ========================================
     @property
-    def world(self): return self.bot.world
+    def world(self):
+        return self.bot.world
+
     @property
-    def entity(self): return self.bot.entity
+    def entity(self):
+        return self.bot.entity
+
     @property
-    def entities(self) -> Dict[int, Any]: return self.bot.entities
+    def entities(self) -> Dict[int, Any]:
+        return self.bot.entities
+
     @property
-    def username(self) -> str: return self.bot.username
+    def username(self) -> str:
+        return self.bot.username
+
     @property
-    def spawn_point(self): return self.bot.spawnPoint
+    def spawn_point(self):
+        return self.bot.spawnPoint
+
     @property
-    def held_item(self): return self.bot.heldItem
+    def held_item(self):
+        return self.bot.heldItem
+
     @property
-    def using_held_item(self) -> bool: return self.bot.usingHeldItem
+    def using_held_item(self) -> bool:
+        return self.bot.usingHeldItem
+
     @property
-    def game(self): return self.bot.game
+    def game(self):
+        return self.bot.game
+
     @property
-    def physics_enabled(self) -> bool: return getattr(self.bot, 'physicsEnabled', True)
+    def physics_enabled(self) -> bool:
+        return getattr(self.bot, "physicsEnabled", True)
+
     @physics_enabled.setter
-    def physics_enabled(self, value: bool): self.bot.physicsEnabled = value
+    def physics_enabled(self, value: bool):
+        self.bot.physicsEnabled = value
+
     @property
-    def player(self): return self.bot.player
+    def player(self):
+        return self.bot.player
+
     @property
-    def players(self) -> Dict[str, Any]: return self.bot.players
+    def players(self) -> Dict[str, Any]:
+        return self.bot.players
+
     @property
-    def tablist(self): return self.bot.tablist
+    def tablist(self):
+        return self.bot.tablist
+
     @property
-    def is_raining(self) -> bool: return self.bot.isRaining
+    def is_raining(self) -> bool:
+        return self.bot.isRaining
+
     @property
-    def rain_state(self) -> float: return self.bot.rainState
+    def rain_state(self) -> float:
+        return self.bot.rainState
+
     @property
-    def thunder_state(self) -> float: return self.bot.thunderState
+    def thunder_state(self) -> float:
+        return self.bot.thunderState
+
     @property
-    def chat_patterns(self) -> List[Dict]: return self.bot.chatPatterns
+    def chat_patterns(self) -> List[Dict]:
+        return self.bot.chatPatterns
+
     @property
-    def settings(self): return self.bot.settings
+    def settings(self):
+        return self.bot.settings
+
     @property
-    def experience(self): return self.bot.experience
+    def experience(self):
+        return self.bot.experience
+
     @property
-    def health(self) -> float: return self.bot.health
+    def health(self) -> float:
+        return self.bot.health
+
     @property
-    def food(self) -> float: return self.bot.food
+    def food(self) -> float:
+        return self.bot.food
+
     @property
-    def food_saturation(self) -> float: return self.bot.foodSaturation
+    def food_saturation(self) -> float:
+        return self.bot.foodSaturation
+
     @property
-    def oxygen_level(self) -> int: return self.bot.oxygenLevel
+    def oxygen_level(self) -> int:
+        return self.bot.oxygenLevel
+
     @property
-    def physics(self): return self.bot.physics
+    def physics(self):
+        return self.bot.physics
+
     @property
-    def firework_rocket_duration(self) -> int: return self.bot.fireworkRocketDuration
+    def firework_rocket_duration(self) -> int:
+        return self.bot.fireworkRocketDuration
+
     @property
-    def time(self): return self.bot.time
+    def time(self):
+        return self.bot.time
+
     @property
-    def quick_bar_slot(self) -> int: return self.bot.quickBarSlot
+    def quick_bar_slot(self) -> int:
+        return self.bot.quickBarSlot
+
     @property
-    def inventory(self): return self.bot.inventory
+    def inventory(self):
+        return self.bot.inventory
+
     @property
-    def target_dig_block(self): return self.bot.targetDigBlock
+    def target_dig_block(self):
+        return self.bot.targetDigBlock
+
     @property
-    def is_sleeping(self) -> bool: return self.bot.isSleeping
+    def is_sleeping(self) -> bool:
+        return self.bot.isSleeping
+
     @property
-    def scoreboards(self) -> Dict: return self.bot.scoreboards
+    def scoreboards(self) -> Dict:
+        return self.bot.scoreboards
+
     @property
-    def scoreboard(self) -> Dict: return self.bot.scoreboard
+    def scoreboard(self) -> Dict:
+        return self.bot.scoreboard
+
     @property
-    def teams(self) -> Dict: return self.bot.teams
+    def teams(self) -> Dict:
+        return self.bot.teams
+
     @property
-    def team_map(self) -> Dict: return self.bot.teamMap
+    def team_map(self) -> Dict:
+        return self.bot.teamMap
+
     @property
-    def control_state(self) -> Dict[str, bool]: return self.bot.controlState
-    
+    def control_state(self) -> Dict[str, bool]:
+        return self.bot.controlState
+
     # ========================================
     # EVENT HANDLING
     # ========================================

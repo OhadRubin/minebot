@@ -28,6 +28,19 @@ from src.bot import create_bot
 # Additional Methods are added via Mixin inheritance and are in the various modules
 #
 
+# import debugpy
+# from debugpy import breakpoint
+import os
+
+
+# # def setup_debugpy(host="localhost", port=5678):
+
+# import debugpy
+# print("Setting up debugpy")
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
+# print("Debugpy setup complete")
+
 class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementManager, InventoryManager):
 
     def __init__(self,account):
@@ -54,27 +67,27 @@ class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementM
         }
         if 'password' in self.account:
             options['password'] = self.account['password']
-        
+
         self.bot = create_bot(options)
-        
+
         # Access JavaScript objects through the bot wrapper
         self.mcData = self.bot.mc_data
         # Import Vec3 at module level like in working src/bot.py
         from src.bot import Vec3
         self.Vec3 = Vec3
-        
+
         # TODO: Original JavaScript setup - may need to restore some functionality:
         # mineflayer = require('mineflayer')
         # bot = mineflayer.createBot({...})
-        # self.mcData   = require('minecraft-data')(bot.version)
-        # self.Block    = require('prismarine-block')(bot.version)
-        # self.Item     = require('prismarine-item')(bot.version)
-        # self.Vec3     = require('vec3').Vec3
-        # pathfinder = require('mineflayer-pathfinder')
-        # bot.loadPlugin(pathfinder.pathfinder)
-        # movements = pathfinder.Movements(bot, self.mcData)
-        # movements.blocksToAvoid.delete(self.mcData.blocksByName.wheat.id)
-        # bot.pathfinder.setMovements(movements)
+        self.mcData = require("minecraft-data")(self.bot.bot.version)
+        self.Block = require("prismarine-block")(self.bot.bot.version)
+        self.Item = require("prismarine-item")(self.bot.bot.version)
+        self.Vec3 = require("vec3").Vec3
+        pathfinder = require("mineflayer-pathfinder")
+        self.bot.bot.loadPlugin(pathfinder.pathfinder)
+        movements = pathfinder.Movements(self.bot.bot, self.mcData)
+        movements.blocksToAvoid.delete(self.mcData.blocksByName.wheat.id)
+        self.bot.bot.pathfinder.setMovements(movements)
 
         # Initialize modules
         # Python makes this hard as __init__ of mixin classes is not called automatically
@@ -87,9 +100,9 @@ class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementM
             c.__init__(self)
         print('.')
 
-    # Debug levels: 
+    # Debug levels:
     #   0=serious error
-    #   1=important info or warning 
+    #   1=important info or warning
     #   2=major actions or events
     #   3=each action, ~1/second
     #   4=spam me!
@@ -138,7 +151,7 @@ class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementM
         return self.account["master"]
 
 #
-# Run the bot. 
+# Run the bot.
 # Note that we can run with or without UI
 #
 
@@ -147,6 +160,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='python pybot.py')
     parser.add_argument('--nowindow', action='store_true', help='run in the background, i.e. without the Tk graphical UI')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='verbosity from 1-5. Use as -v, -vv, -vvv etc.')
+    parser.add_argument("--message", "-m", type=str, help="override master player name")
     args = parser.parse_args()
     argsd = vars(args)
 
@@ -160,6 +174,8 @@ if __name__ == "__main__":
     pybot.pdebug(f'Connected to server {account.account["host"]}.',0)
     if 'verbose' in argsd:
         pybot.debug_lvl = argsd['verbose']
+    if "message" in argsd and argsd["message"]:
+        account.account["master"] = argsd["message"]
 
     # Import list of known locations. Specific to the world.
     if account.locations:
@@ -170,24 +186,51 @@ if __name__ == "__main__":
     #
 
     # Report status
-    while not pybot.bot.health:
+    # while not pybot.bot.health:
+    #     time.sleep(1)
+
+    # @pybot.bot.on_chat
+    # def handle_chat(sender, message, this, *rest):
+    #     pybot.handleChat(sender, message, this, *rest)
+
+    @pybot.bot.on_spawn
+    def handle_spawn():
+        print("Bot spawned, waiting for chunks to load...")
+        import asyncio
+        import threading
+
+        async def run_async():
+            print("Mining thread started!")
+            # Give a moment for debugger to attach if needed
+            # import time
+            # await pybot.bot
+            
+
+            # print("Waiting 10 seconds for debugger attachment...")
+            # time.sleep(3)
+            # breakpoint()
+            await pybot.stripMine(3, 3, 5)
+
+        def run_sync():
+            # Optional: wait for debugger
+            # debugpy.debug_this_thread()
+            # breakpoint()
+            asyncio.run(run_async())
         time.sleep(1)
+        thread = threading.Thread(target=run_sync)
+        thread.start()
 
-    @pybot.bot.on_chat
-    def handle_chat(sender, message, this, *rest):
-        pybot.handleChat(sender, message, this, *rest)
-
-    @pybot.bot.on_health
-    def handle_health(arg):
-        pybot.healthCheck()
+    # @pybot.bot.on_health
+    # def handle_health():
+    #     pybot.healthCheck()
 
     # Initial healing - run in a separate thread since it may take time
-    def run_initial_heal():
-        asyncio.run(pybot.healToFull())
-    
-    import threading
-    heal_thread = threading.Thread(target=run_initial_heal)
-    heal_thread.start()
+    # def run_initial_heal():
+    #     asyncio.run(pybot.healToFull())
+
+    # import threading
+    # heal_thread = threading.Thread(target=run_initial_heal)
+    # heal_thread.start()
 
     if pybot.debug_lvl >= 4:
         pybot.printInventory()
@@ -195,5 +238,5 @@ if __name__ == "__main__":
 
     pybot.mainloop()
     # The spawn event
-    #once(pybot.bot, 'login')
-    #pybot.bot.chat('Bot '+pybot.bot.callsign+' joined.')
+    # once(pybot.bot, 'login')
+    # pybot.bot.chat('Bot '+pybot.bot.callsign+' joined.')
