@@ -38,9 +38,9 @@ class workArea:
         self.width2 = int((width-1)/2)
         self.height = height
         self.depth = depth
+        # bot.findBlocks({ matching: [bot.registry.blocksByName["chest"].id], maxDistance: 128, count: 10 })
 
-
-        self.start_chest = pybot.findClosestBlock("Chest",xz_radius=3,y_radius=1)
+        self.start_chest = pybot.findClosestBlock("Chest", xz_radius=6, y_radius=20)
 
         if not self.start_chest:
             self.pybot.chat("Can't find starting position. Place a chest on the ground to mark it.")
@@ -108,7 +108,6 @@ class workArea:
     def zRange(self):
         return range(0,self.depth)
 
-
     def toWorld(self,x,y,z):
         return Vec3(self.origin.x+self.latx*x+self.d.x*z,
                     self.origin.y+y,
@@ -120,7 +119,6 @@ class workArea:
         return Vec3(self.origin.x+self.latx*v.x+self.d.x*v.z,
                     self.origin.y+v.y,
                     self.origin.z+self.latz*v.x+self.d.z*v.z)
-
 
     # Convert direction relative to absolute coordinates
 
@@ -184,7 +182,6 @@ class workArea:
             v = self.toWorldV3(argv[0])
         self.pybot.walkToBlock3(v)
 
-
     # String area direction as North, South etc.
 
     def directionStr(self):
@@ -201,4 +198,3 @@ class workArea:
         self.walkToStart()
         self.pybot.restockFromChest(item_list)
         self.pybot.eatFood()
-
