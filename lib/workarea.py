@@ -2,6 +2,7 @@
 # Main purpose is to handle relative to absolute coordinates
 #
 
+import time
 import lib.botlib as botlib
 from lib.botlib import strDirection, addVec3, subVec3, lenVec3
 
@@ -145,6 +146,27 @@ class workArea:
                     nearby_block_types.add(block.displayName)
         print(f"THEORY_5_DEBUG: Nearby block types = {sorted(nearby_block_types)}")
         
+        # THEORY_6_DEBUG: Check bot's inventory to see what we can place
+        print("THEORY_6_DEBUG: Checking bot inventory for chest and torch...")
+        inventory_items = list(self.pybot.bot.inventory.items())
+        print(f"THEORY_6_DEBUG: Total inventory items: {len(inventory_items)}")
+        for item in inventory_items:
+            print(f"THEORY_6_DEBUG: Inventory item: {item.count}x {item.displayName} (type: {item.type})")
+        
+        has_chest = self.pybot.invItemCount("Chest") > 0
+        has_torch = self.pybot.invItemCount("Torch") > 0
+        print(f"THEORY_6_DEBUG: has_chest={has_chest}, has_torch={has_torch}")
+        
+        if len(chest_blocks) == 0 and len(torch_blocks) == 0:
+            print("THEORY_6_DEBUG: No chest+torch setup found, but bot should place them!")
+            if has_chest and has_torch:
+                print("THEORY_6_DEBUG: Bot has both chest and torch - will place them!")
+                return self.place_initial_setup()
+            else:
+                print(f"THEORY_6_DEBUG: Bot missing items - chest:{has_chest}, torch:{has_torch}")
+                print("THEORY_7_DEBUG: Attempting to give bot required items...")
+                return self.give_and_place_setup()
+        
         print("CRAZY DEBUG: Setting self.start_chest = None and starting search loop...")
         self.start_chest = None
         print(f"CRAZY DEBUG: Starting nested loop - {len(chest_blocks)} chests x {len(torch_blocks)} torches")
@@ -273,6 +295,119 @@ class workArea:
         print(f"CRAZY DEBUG: workArea.initialize() completed successfully!")
         return True
 
+    def place_initial_setup(self):
+        """Place a chest and torch for the bot to start mining"""
+        print("THEORY_6_DEBUG: Placing initial chest+torch setup...")
+        
+        # Get bot's current position
+        bot_pos = self.pybot.bot.entity.position
+        print(f"THEORY_6_DEBUG: Bot position: {bot_pos}")
+        
+        # Place chest at bot's feet
+        chest_pos = self.pybot.Vec3(int(bot_pos.x), int(bot_pos.y) - 1, int(bot_pos.z))
+        print(f"THEORY_6_DEBUG: Placing chest at {chest_pos}")
+        
+        # Wield and place chest
+        if self.pybot.wieldItem("Chest"):
+            try:
+                # Place chest on the ground below bot
+                ground_block = self.pybot.bot.blockAt(chest_pos)
+                if ground_block.displayName == "Air":
+                    print("THEORY_6_DEBUG: Ground is air, can't place chest there")
+                    return False
+                
+                face_vector = self.pybot.Vec3(0, 1, 0)  # Place on top
+                result = self.pybot.bot.placeBlock(ground_block, face_vector)
+                print(f"THEORY_6_DEBUG: Chest placement result: {result}")
+                time.sleep(1)
+            except Exception as e:
+                print(f"THEORY_6_DEBUG: Failed to place chest: {e}")
+                return False
+        else:
+            print("THEORY_6_DEBUG: Failed to wield chest")
+            return False
+        
+        # Place torch next to chest (1 block north)
+        torch_pos = self.pybot.Vec3(int(bot_pos.x), int(bot_pos.y) - 1, int(bot_pos.z) + 1)
+        print(f"THEORY_6_DEBUG: Placing torch at {torch_pos}")
+        
+        if self.pybot.wieldItem("Torch"):
+            try:
+                ground_block = self.pybot.bot.blockAt(torch_pos)
+                if ground_block.displayName == "Air":
+                    print("THEORY_6_DEBUG: Ground is air, can't place torch there")
+                    return False
+                    
+                face_vector = self.pybot.Vec3(0, 1, 0)  # Place on top
+                result = self.pybot.bot.placeBlock(ground_block, face_vector)
+                print(f"THEORY_6_DEBUG: Torch placement result: {result}")
+                time.sleep(1)
+            except Exception as e:
+                print(f"THEORY_6_DEBUG: Failed to place torch: {e}")
+                return False
+        else:
+            print("THEORY_6_DEBUG: Failed to wield torch")
+            return False
+        
+        print("THEORY_6_DEBUG: Initial setup placed! Now re-initializing...")
+        # Now try to initialize again with the placed blocks
+        return self.initialize()
+
+    def give_and_place_setup(self):
+        """Give bot required items and place them"""
+        print("THEORY_7_DEBUG: Giving bot chest and torch via creative mode...")
+        
+        try:
+            # Try using creative mode to give items
+            print("THEORY_7_DEBUG: Attempting creative.setInventorySlot for chest...")
+            chest_item = self.pybot.Item(177, 1)  # Chest ID is 177
+            self.pybot.bot.creative.setInventorySlot(9, chest_item)
+            
+            print("THEORY_7_DEBUG: Attempting creative.setInventorySlot for torch...")
+            torch_item = self.pybot.Item(171, 1)  # Torch ID is 171 
+            self.pybot.bot.creative.setInventorySlot(10, torch_item)
+            
+            time.sleep(0.5)
+            
+            # Check if it worked
+            has_chest_now = self.pybot.invItemCount("Chest") > 0
+            has_torch_now = self.pybot.invItemCount("Torch") > 0
+            print(f"THEORY_7_DEBUG: After giving items - chest:{has_chest_now}, torch:{has_torch_now}")
+            
+            if has_chest_now and has_torch_now:
+                print("THEORY_7_DEBUG: Successfully gave items! Now placing setup...")
+                return self.place_initial_setup()
+            else:
+                print("THEORY_7_DEBUG: Creative mode item giving failed")
+                return False
+                
+        except Exception as e:
+            print(f"THEORY_7_DEBUG: Creative mode failed: {e}")
+            print("THEORY_7_DEBUG: Trying chat command approach...")
+            
+            # Try using chat commands to give items  
+            try:
+                self.pybot.bot.chat("/give @s chest 1")
+                time.sleep(0.5)
+                self.pybot.bot.chat("/give @s torch 1") 
+                time.sleep(0.5)
+                
+                has_chest_now = self.pybot.invItemCount("Chest") > 0
+                has_torch_now = self.pybot.invItemCount("Torch") > 0
+                print(f"THEORY_7_DEBUG: After chat commands - chest:{has_chest_now}, torch:{has_torch_now}")
+                
+                if has_chest_now and has_torch_now:
+                    print("THEORY_7_DEBUG: Chat command worked! Now placing setup...")
+                    return self.place_initial_setup()
+                else:
+                    print("THEORY_7_DEBUG: Chat commands also failed")
+                    return False
+                    
+            except Exception as e2:
+                print(f"THEORY_7_DEBUG: Chat command also failed: {e2}")
+                print("THEORY_7_DEBUG: All methods failed - bot needs manual setup")
+                return False
+
     def xRange(self):
         return range(-self.width2, self.width2+1)
 
@@ -328,7 +463,7 @@ class workArea:
         for z in self.zRange():
             for y in self.yRange():
                 for x in self.xRange():
-                    blocks.append(self.toVec3(x,y,z))
+                    blocks.append(self.toWorld(x,y,z))
         return blocks
 
     # Convert position relative to absolute coordinates
