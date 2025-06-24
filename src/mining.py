@@ -1,4 +1,3 @@
-
 from .bot import Vec3
 
 def itemTypeAndName(bot,item_arg):
@@ -34,7 +33,7 @@ def checkInHand(bot,item_arg):
         return True
     else:
         return False
-    
+
 def wieldItem(bot,item_arg):
 
     if not item_arg:
@@ -99,7 +98,7 @@ fillBlocks = { "Stone Bricks", "Cobblestone", "Dirt" }
 
 
 def mining_safety_check(bot, position):
-    n = bot.block_at(position).displayName
+    n = bot.blockAt(position).displayName
     if n in block_will_flow:
         stopActivity = True
         dangerType = "danger: "+n
@@ -112,15 +111,15 @@ async def mineBlock(bot, x ,y =None,z=None):
         v = x
     else:
         v = Vec3(x,y,z)
-    
-    b = bot.block_at(v)
-    
+
+    b = bot.blockAt(v)
+
     if not b:
         print(f'No block at ({v.x},{v.y},{v.z})')
         return 0
 
     print(f'Block at ({v.x},{v.y},{v.z}): {b.displayName}')
-    
+
     if not hasattr(b, 'displayName') or not b.displayName:
         print(f'Block has no displayName')
         return 0
@@ -128,24 +127,22 @@ async def mineBlock(bot, x ,y =None,z=None):
     if b.displayName in ignored_blocks:
         print(f'Ignoring block: {b.displayName}')
         return 0
-        
+
     print(f'Attempting to mine: {b.displayName}')
 
     # Use the JavaScript bot directly
     await bot.dig(b, True)  # forceLook=True
     print(f'Mining started for {b.displayName}')
-    
 
-    
     # Check if block was mined
-    new_block = bot.block_at(v)
+    new_block = bot.blockAt(v)
     if not new_block or new_block.displayName in ignored_blocks:
         print(f'Successfully mined {b.displayName}')
         return 1
     else:
         print(f'Block still there: {new_block.displayName}')
         return 0
-    
+
 
 def get_current_position(bot):
     """Get the bot's current position as a Vec3."""
@@ -253,7 +250,7 @@ class WorkArea:
         # useExtraInfo=False
         )
         chest_pos = chest_blocks[0] if chest_blocks else None
-        
+
         if not chest_pos:
             print("Can't find starting position. Place a chest on the ground to mark it.")
             return None
@@ -273,7 +270,7 @@ class WorkArea:
                 'count': 1
             })
             torch_pos = torch_blocks[0] if torch_blocks else None
-            
+
             r_torch_blocks = self.bot.js_bot.findBlocks({
                 'matching': [self.bot.js_bot.registry.blocksByName["redstone_torch"].id],
                 'maxDistance': 3,
@@ -292,7 +289,7 @@ class WorkArea:
                 0,
                 self.start_torch.z - self.start_chest.z
             )
-            
+
             self.start = Vec3(self.start_chest.x, self.start_chest.y, self.start_chest.z)
             self.origin = Vec3(
                 self.start.x + 2 * self.d.x,
@@ -303,7 +300,7 @@ class WorkArea:
         # Vector directions
         self.forwardVector = self.d
         self.backwardVector = Vec3(-self.d.x, self.d.y, -self.d.z)
-        
+
         # Left/right vectors (rotated 90 degrees)
         self.leftVector = Vec3(-self.d.z, 0, self.d.x)
         self.rightVector = Vec3(self.d.z, 0, -self.d.x)
@@ -312,7 +309,6 @@ class WorkArea:
         self.latz = self.rightVector.z
 
         self.valid = True
-
 
     def xRange(self):
         return range(-self.width2, self.width2+1)
@@ -346,9 +342,9 @@ class WorkArea:
 
     def blockAt(self, *argv):
         if len(argv) == 3:
-            return self.bot.block_at(self.toWorld(argv[0], argv[1], argv[2]))
+            return self.bot.blockAt(self.toWorld(argv[0], argv[1], argv[2]))
         else:
-            return self.bot.block_at(self.toWorldV3(argv[0]))
+            return self.bot.blockAt(self.toWorldV3(argv[0]))
 
     def allBlocks(self):
         blocks = []

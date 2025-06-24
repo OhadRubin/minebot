@@ -39,6 +39,10 @@ class Bot:
         """Creates a new Mineflayer bot instance."""
         self.bot = require('mineflayer').createBot(options)
         self.mc_data = require('minecraft-data')(self.bot.version)
+
+        # Load pathfinder plugin
+        pathfinder_plugin = require("mineflayer-pathfinder")
+        self.bot.loadPlugin(pathfinder_plugin.pathfinder)
         blocksByName = self.bot.registry.blocksByName
         # blocksByName = iter(blocksByName)
         # print(dir(blocksByName))
@@ -207,6 +211,10 @@ class Bot:
     def control_state(self) -> Dict[str, bool]:
         return self.bot.controlState
 
+    @property
+    def pathfinder(self):
+        return self.bot.pathfinder
+
     # ========================================
     # EVENT HANDLING
     # ========================================
@@ -325,12 +333,18 @@ class Bot:
     # ========================================
     # FUNCTIONS (World Query)
     # ========================================
-    def block_at(self, point, extra_infos=True): return self.bot.blockAt(point, extra_infos)
+    def blockAt(self, point, extra_infos=True):
+        return self.bot.blockAt(point, extra_infos)
+
     async def wait_for_chunks_to_load(self): return await self.bot.waitForChunksToLoad()
     def block_in_sight(self, max_steps=256, vec_len=5/16): return self.bot.blockInSight(max_steps, vec_len)
-    def block_at_cursor(self, max_dist=256): return self.bot.blockAtCursor(max_dist)
+    def blockAt_cursor(self, max_dist=256):
+        return self.bot.blockAtCursor(max_dist)
+
     def entity_at_cursor(self, max_dist=3.5): return self.bot.entityAtCursor(max_dist)
-    def block_at_entity_cursor(self, entity=None, max_dist=256): return self.bot.blockAtEntityCursor(entity or self.entity, max_dist)
+    def blockAt_entity_cursor(self, entity=None, max_dist=256):
+        return self.bot.blockAtEntityCursor(entity or self.entity, max_dist)
+
     def can_see_block(self, block) -> bool: return self.bot.canSeeBlock(block)
     def find_blocks(self, options: Dict): return self.bot.findBlocks(options)
     def find_block(self, options: Dict): return self.bot.findBlock(options)
@@ -391,7 +405,9 @@ class Bot:
     async def activate_block(self, block, direction=None, c_pos=None): return await self.bot.activateBlock(block, direction, c_pos)
     async def activate_entity(self, entity): return await self.bot.activateEntity(entity)
     async def activate_entity_at(self, entity, pos): return await self.bot.activateEntityAt(entity, pos)
-    async def consume(self): return await self.bot.consume()
+    def consume(self):
+        return self.bot.consume()
+
     async def fish(self): return await self.bot.fish()
     def activate_item(self, off_hand=False): self.bot.activateItem(off_hand)
     def deactivate_item(self): self.bot.deactivateItem()
@@ -404,7 +420,9 @@ class Bot:
     def set_quick_bar_slot(self, slot: int): self.bot.setQuickBarSlot(slot)
     async def craft(self, recipe, count=1, table=None): return await self.bot.craft(recipe, count, table)
     async def write_book(self, slot: int, pages: List[str]): return await self.bot.writeBook(slot, pages)
-    async def open_container(self, container, *args): return await self.bot.openContainer(container, *args)
+    def open_container(self, container, *args):
+        return self.bot.openContainer(container, *args)
+
     async def open_chest(self, chest, *args): return await self.bot.openChest(chest, *args)
     async def open_furnace(self, furnace_block): return await self.bot.openFurnace(furnace_block)
     async def open_dispenser(self, dispenser_block): return await self.bot.openDispenser(dispenser_block)

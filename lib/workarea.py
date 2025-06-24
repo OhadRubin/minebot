@@ -40,11 +40,11 @@ class workArea:
         self.height = height
         self.depth = depth
 
-    async def initialize(self):
+    def initialize(self):
         """Async initialization that finds chest and torch"""
         # Find the starting chest
-        # self.start_chest = await self.pybotk( # 
-        # self.start_chest = await self.pybot.findClosestBlock( 
+        # self.start_chest = self.pybotk( #
+        # self.start_chest = self.pybot.findClosestBlock(
         #     "Chest", xz_radius=6, y_radius=20
         # )
         # print(f"{self.start_chest=}")
@@ -52,8 +52,8 @@ class workArea:
         if self.notorch:
             # Area with arbitrary direction, we pick point in front of chest
             p = self.start_chest.getProperties()
-            self.d = strDirection(p["facing"])
-            self.start = addVec3(self.start_chest.position,self.d)
+            self.d = botlib.strDirection(p["facing"])
+            self.start = botlib.addVec3(self.start_chest.position, self.d)
 
             # Origin
             self.origin = self.start
@@ -112,8 +112,8 @@ class workArea:
         # else:
 
         # Determine "forward" direction from chest+torch
-        # torch = await self.pybot.findClosestBlock("Torch", xz_radius=6, y_radius=20)
-        # r_torch = await self.pybot.findClosestBlock(
+        # torch = self.pybot.findClosestBlock("Torch", xz_radius=6, y_radius=20)
+        # r_torch = self.pybot.findClosestBlock(
         #     "Redstone Torch", xz_radius=6, y_radius=20
         # )
 
@@ -135,7 +135,7 @@ class workArea:
 
         # Direction of the Area
 
-        # torch_blocks = await self.pybot.bot.js_bot.findBlocks(
+        # torch_blocks = self.pybot.bot.js_bot.findBlocks(
         #     {
         #         "matching": [
         #             self.pybot.bot.displayname_to_id["Redstone Torch"],
@@ -153,7 +153,7 @@ class workArea:
         #     return False
 
         self.start = self.start_chest # findBlocks actually returns a Vec3 so it's already a position
-        # self.start = self.start_chest.position 
+        # self.start = self.start_chest.position
 
         # Origin
         self.origin = self.pybot.Vec3(
@@ -205,7 +205,7 @@ class workArea:
 
     # Minecraft block at relative coordinates
 
-    def blockAt(self,*argv):
+    def blockAt(self, *argv):
         if len(argv) == 3:
             return self.pybot.bot.blockAt(self.toWorld(argv[0],argv[1],argv[2]))
         else:
@@ -261,12 +261,12 @@ class workArea:
     # String area direction as North, South etc.
 
     def directionStr(self):
-        return directionStr(self.d)
+        return botlib.directionStr(self.d)
 
     # Walk back to Torch
 
     def walkToStart(self):
-        self.pybot.walkToBlock3(self.start)        
+        self.pybot.walkToBlock3(self.start)
 
     # Restock from Chest
 

@@ -49,7 +49,7 @@ class CombatBot:
 
         # Check for air
 
-    async def healToFull(self):
+    def healToFull(self):
         if self.bot.health == 20 and self.bot.food > 18:
             return
         self.healMode = True
@@ -59,7 +59,7 @@ class CombatBot:
             if self.bot.health > h:
                 self.pdebug(f'  health: {int(100*self.bot.health/20)}%   food: {int(100*self.bot.food/20)}%',3)
                 h = self.bot.health
-            if not await self.eatFood():
+            if not self.eatFood():
                 break
             time.sleep(2)
         self.pdebug(f'  health: {int(100*self.bot.health/20)}%   food: {int(100*self.bot.food/20)}%',3)

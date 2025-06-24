@@ -34,6 +34,7 @@ class MineBot:
 
     ignored_blocks = [
         "Torch",
+        "Redstone Torch",
         "Wall Torch",
         "Sign",
         "Air",
@@ -134,7 +135,8 @@ class MineBot:
     # Checks if walking to a specific block is considered safe
 
     def mining_safety_check(self,position):
-        n = self.bot.blockAt(position).displayName
+        b = self.bot.blockAt(position)
+        n = b.displayName
         if n in self.block_will_flow:
             self.stopActivity = True
             self.dangerType = "danger: "+n
@@ -146,7 +148,7 @@ class MineBot:
     # Mine a block with the right tool
     # Takes a Vector or x,y,z as input
 
-    async def mineBlock(self,x,y=None,z=None):
+    def mineBlock(self, x, y=None, z=None):
         if not y and not z:
             v = x
         else:
@@ -165,7 +167,8 @@ class MineBot:
             # Ok, this looks mineable
             # Try 20 times, in case gravel is dropping down
             for attempts in range(0,20):
-                if not self.mining_safety_check(self.bot.entity.position): return 0
+                if not self.mining_safety_check(self.bot.entity.position):
+                    return 0
 
                 self.pdebug(f'    trying to mine',4)
 
@@ -182,7 +185,7 @@ class MineBot:
 
                 # dig out the block
                 try:
-                    await self.bot.dig(b)
+                    self.bot.dig(b)
                 except Exception as e:
                     self.pexception(f'dig failed for block {v.x},{v.y},{v.z}) {b.displayName} t:{b.digTime(274)}',e)
 
@@ -199,7 +202,7 @@ class MineBot:
     # Assumes the bot is at start
     #
 
-    async def minePath(self,start,end,height, area=None):
+    def minePath(self, start, end, height, area=None):
 
         self.pdebug(f'minePath({start},{end},{height})',4)
         c = Vec3(start.x, start.y, start.z)
@@ -208,7 +211,7 @@ class MineBot:
         while True:
 
             # Check if path is safe
-            bb = self.blockAt(c.x,c.y-1,c.z)
+            bb = self.bot.blockAt(Vec3(c.x, c.y - 1, c.z))
             if bb.displayName in self.dangerBlocks:
                 self.perror(f'  stopping, dangerous block {bb.displayName} ')
                 return False
@@ -231,7 +234,7 @@ class MineBot:
 
                 # mine
                 for h in range(0,height):
-                    cc = await self.mineBlock( c.x,c.y+h,c.z)
+                    cc = self.mineBlock(c.x, c.y + h, c.z)
                     if area:
                         area.blocks_mined += cc
 
@@ -251,9 +254,10 @@ class MineBot:
                 self.stopActivity = True
                 return False
 
-            if not self.mining_safety_check(c): return 0
+            if not self.mining_safety_check(c):
+                return 0
 
-            await self.safeWalk(c,0.3)
+            self.safeWalk(c,0.3)
 
             # Check if we are done
             if c.x == end.x and c.z == end.z:
@@ -268,11 +272,11 @@ class MineBot:
     # Mine a rectangle of dx times dz, height h around a chest
     #
 
-    async def roomMine(self,dx_max,dz_max, height):
+    def roomMine(self, dx_max, dz_max, height):
 
-        dx_max = int( (checkIntArg(dx_max, 3, 99)-1)/2)
-        dz_max = int( (checkIntArg(dz_max, 3, 99)-1)/2)
-        height = checkIntArg(height, 2, 8)
+        dx_max = int((botlib.checkIntArg(dx_max, 3, 99) - 1) / 2)
+        dz_max = int((botlib.checkIntArg(dz_max, 3, 99) - 1) / 2)
+        height = botlib.checkIntArg(height, 2, 8)
 
         if not dx_max or not dz_max or not height:
             self.chat('Try: mine room <dx 3-99> <dz 3-99> <height 2-8>')
@@ -280,8 +284,7 @@ class MineBot:
 
         area = workArea(self,1,1,1,notorch=True)
 
-
-        if not await area.initialize():
+        if not area.initialize():
             return False
         start = area.start
 
@@ -317,19 +320,27 @@ class MineBot:
                 self.refreshActivity( [ f'Blocks Mined: {area.blocks_mined}', f'Row: {dz}' ] )
                 row_c = Vec3(start.x,start.y,start.z+dz)
                 self.pdebug(f'walking to {row_c.x} {row_c.y} {row_c.z}',3)
-                await self.walkTo(row_c)
-                await self.minePath(row_c,Vec3(row_c.x-dx_max,row_c.y,row_c.z),height, area=area)
-                await self.walkTo(row_c)
-                await self.minePath(row_c,Vec3(row_c.x+dx_max,row_c.y,row_c.z),height, area=area)
+                self.walkTo(row_c)
+                self.minePath(
+                    row_c, Vec3(row_c.x - dx_max, row_c.y, row_c.z), height, area=area
+                )
+                self.walkTo(row_c)
+                self.minePath(
+                    row_c, Vec3(row_c.x + dx_max, row_c.y, row_c.z), height, area=area
+                )
 
             if not self.stopActivity:
 
                 self.refreshActivity( [ f'Blocks Mined: {area.blocks_mined}', f'Row: {dz}' ] )
                 row_c = Vec3(start.x,start.y,start.z-dz)
-                await self.walkTo(row_c)
-                await self.minePath(row_c,Vec3(row_c.x-dx_max,row_c.y,row_c.z),height, area=area)
-                await self.walkTo(row_c)
-                await self.minePath(row_c,Vec3(row_c.x+dx_max,row_c.y,row_c.z),height, area=area)
+                self.walkTo(row_c)
+                self.minePath(
+                    row_c, Vec3(row_c.x - dx_max, row_c.y, row_c.z), height, area=area
+                )
+                self.walkTo(row_c)
+                self.minePath(
+                    row_c, Vec3(row_c.x + dx_max, row_c.y, row_c.z), height, area=area
+                )
 
             if self.stopActivity:
                 break
@@ -367,13 +378,13 @@ class MineBot:
             area.valuables = name
         return bx, by
 
-    async def bridgeIfNeeded(self, area, x, z):
+    def bridgeIfNeeded(self, area, x, z):
         if area.blockAt(x,-1,z).displayName in self.dangerBlocks:
             v_place = area.toWorld(x,-1,z-1)
             # Try three times.
             for ii in range (0,3):
                 self.wieldItemFromList(self.fillBlocks)
-                await self.bridgeBlock(v_place,area.forwardVector)
+                self.bridgeBlock(v_place,area.forwardVector)
                 if area.blockAt(x,-1,z).displayName not in self.dangerBlocks:
                     break
             else:
@@ -391,7 +402,7 @@ class MineBot:
     # Bridge afterwards if needed.
     #
 
-    async def mineColumn(self, area, x, z, height):
+    def mineColumn(self, area, x, z, height):
 
         if self.stopActivity: return False
         self.pdebug(f'mineColumn(x:{x},z:{z},height:{height})',5)
@@ -420,10 +431,10 @@ class MineBot:
                     # We need to clear this
                     done = False
                     if area.blockAt(x,y+1,z).displayName in self.block_will_drop:
-                        await self.mineBlock( area.toWorld(x,y,z) )
+                        self.mineBlock(area.toWorld(x, y, z))
                         time.sleep(1)
                     else:
-                        await self.mineBlock( area.toWorld(x,y,z) )
+                        self.mineBlock(area.toWorld(x, y, z))
                     area.blocks_mined += 1
             if done:
                 break
@@ -441,7 +452,7 @@ class MineBot:
     # Check for goodies in the floor. Works best to about 2 deep.
     #
 
-    async def floorMine(self, area, x, z, depth):
+    def floorMine(self, area, x, z, depth):
         if self.stopActivity: return False
 
         if depth > 0:
@@ -452,16 +463,16 @@ class MineBot:
             if max_d > 0:
                 # Ok, we found something
                 for d in range(1,max_d+1):
-                    await self.mineBlock( area.toWorld(x,-d,z) )
+                    self.mineBlock(area.toWorld(x, -d, z))
                 # Now fill it up, which gets us the blocks. Best effort.
                 for d in range(max_d, 0, -1):
                     v_place = area.toWorld(x,-d-1,z)
                     self.wieldItemFromList(self.fillBlocks)
-                    await self.safePlaceBlock(v_place,Vec3(0,1,0))
+                    self.safePlaceBlock(v_place, Vec3(0, 1, 0))
                     time.sleep(0.2)
         return True
 
-    async def ceilingMine(self, area, x, z, max_height):
+    def ceilingMine(self, area, x, z, max_height):
         if self.stopActivity: return False
 
         # Check the ceiling up to max reachable height (7 above)
@@ -476,13 +487,13 @@ class MineBot:
                     if area.blockAt(x,y+1,z).displayName in self.dangerDropBlocks:
                         self.pdebug(f'  cant mine ceiling, {area.blockAt(x,y+1,z).displayName} above.',2)
                         return False
-                    await self.mineBlock( area.toWorld(x,y,z) )
+                    self.mineBlock(area.toWorld(x, y, z))
 
     #
     # Mine up a row. Unlike minePath, this works in an area
     #
 
-    async def mineRow(self, area, max_x, height, z, floor_mine=0, ceiling_mine=0):
+    def mineRow(self, area, max_x, height, z, floor_mine=0, ceiling_mine=0):
         # print(f'mineRow(max_x:{max_x},height:{height},z:{z},floor_mine:{floor_mine},ceiling_mine:{ceiling_mine})')
         if max_x == 0:
             return False
@@ -492,30 +503,31 @@ class MineBot:
             dx = 1
 
         r = range(dx*area.width2+dx, max_x+dx,dx)
-        await area.walkToBlock3(dx*area.width2,0,z)
+        area.walkToBlock3(dx * area.width2, 0, z)
         height = max(2,height)
 
         for x in r:
             if self.stopActivity : break
-            if not await self.mineColumn(area, x, z, height):
+            if not self.mineColumn(area, x, z, height):
                 return False
             # Check floors
             if floor_mine > 0:
-                await self.floorMine(area, x, z, floor_mine)
+                self.floorMine(area, x, z, floor_mine)
             if ceiling_mine > 0:
-                await self.ceilingMine(area, x, z, ceiling_mine)
+                self.ceilingMine(area, x, z, ceiling_mine)
             # Bridge if needed
             if area.blockAt(x,-1,z).displayName in self.dangerBlocks:
                 v_place = area.toWorld(x-dx,-1,z)
                 # Try three times.
                 self.wieldItemFromList(self.fillBlocks)
-                await self.bridgeBlock(v_place,area.dirToWorldV3(Vec3(dx,0,0)))
+                self.bridgeBlock(v_place, area.dirToWorldV3(Vec3(dx, 0, 0)))
                 if area.blockAt(x,-1,z).displayName in self.dangerBlocks:
                     self.pdebug(f'    cant reach, bridging failed {area.blockAt(x,-1,z).displayName}.',2)
-                    await area.walkToBlock3(0,0,z)
+                    area.walkToBlock3(0, 0, z)
                     return False
-            if not self.mining_safety_check(area.toWorld(x,0,z)): return False
-            await area.walkToBlock3(x,0,z)
+            if not self.mining_safety_check(area.toWorld(x, 0, z)):
+                return False
+            area.walkToBlock3(x, 0, z)
         time.sleep(0.5)
         return True
 
@@ -534,7 +546,7 @@ class MineBot:
     #  Build a strip mine of a specific height and width and light it up
     #
 
-    async def stripMine(self,width=3,height=3,valrange=3):
+    def stripMine(self, width=3, height=3, valrange=3):
         # print(
         #     javascript.eval_js("""bot.findBlock({ matching: [bot.registries.blocksByName["Chest"].id], maxDistance: 16, count: 1, })""")
         # )
@@ -543,7 +555,7 @@ class MineBot:
         z_torch = 0
         z =0
         area = workArea(self,width,height,99999)
-        if not await area.initialize():
+        if not area.initialize():
             return False
         self.speedMode = True   # explore fast until we find something
 
@@ -560,8 +572,9 @@ class MineBot:
 
             self.mineActivity(area,z,"Walking back to work")
             while area.blocks_mined-area.last_break < area.break_interval and not self.stopActivity:
-                if not self.mining_safety_check(area.toWorld(0,0,z)): break
-                await area.walkToBlock3(0,0,z-1)
+                if not self.mining_safety_check(area.toWorld(0, 0, z)):
+                    break
+                area.walkToBlock3(0, 0, z - 1)
 
                 if area.blocks_mined > 0: self.speedMode = False
 
@@ -575,31 +588,35 @@ class MineBot:
                 # Step 1 - Mine the main tunnel
                 self.mineActivity(area,z,"Walking back to work", f'Mining main tunnel')
                 for x in area.xRange():
-                    await self.mineColumn(area, x, z, height)
-                    await self.floorMine(area, x, z, 2)
-                    await self.ceilingMine(area, x, z, height+2)
+                    self.mineColumn(area, x, z, height)
+                    self.floorMine(area, x, z, 2)
+                    self.ceilingMine(area, x, z, height + 2)
 
                 # Step 2 - Bridge if needed
                 for x in area.xRange():
-                    await self.bridgeIfNeeded(area, x, z)
+                    self.bridgeIfNeeded(area, x, z)
                 if self.stopActivity: break
 
-                await area.walkToBlock3(0,0,z)
+                area.walkToBlock3(0, 0, z)
                 # Step 3 - Look for Valuables Left and Right
 
                 bx, by  = self.findValuables(area, -area.width2-valrange, height+2, z, min_y=-2)
                 by = min(by,height-1)
                 if bx != 0:
                     self.mineActivity(area, z, f'Found: {area.valuables}✨', f'⬅️ Left side {bx}/{by+1}')
-                    await self.mineRow(area, bx, by+1, z, floor_mine=2, ceiling_mine=height+2)
-                    await area.walkToBlock3(0,0,z)
+                    self.mineRow(
+                        area, bx, by + 1, z, floor_mine=2, ceiling_mine=height + 2
+                    )
+                    area.walkToBlock3(0, 0, z)
 
                 bx, by  = self.findValuables(area, area.width2+valrange, height+2, z, min_y=-2)
                 by = min(by,height-1)
                 if bx != 0:
                     self.mineActivity(area, z, f'Found: {area.valuables}✨', f'➡️ Right side {bx}/{by+1}')
-                    await self.mineRow(area, bx, by+1, z, floor_mine=2, ceiling_mine=height+2)
-                    await area.walkToBlock3(0,0,z)
+                    self.mineRow(
+                        area, bx, by + 1, z, floor_mine=2, ceiling_mine=height + 2
+                    )
+                    area.walkToBlock3(0, 0, z)
 
                 # Step 4 - Light up if needed and move forward by one.
                 if z > z_torch:
@@ -607,26 +624,31 @@ class MineBot:
                     # try to place a torch
                     torch_v = area.toWorld(area.width2,1,z)
                     wall_v  = area.toWorld(area.width2+1,1,z)
-                    dv = subVec3(torch_v, wall_v)
+                    dv = botlib.subVec3(torch_v, wall_v)
                     if self.bot.blockAt(wall_v).displayName not in self.ignored_blocks:
                         if self.bot.blockAt(torch_v).displayName != "Wall Torch":
                             self.pdebug("  placing torch.",2)
                             self.wieldItem("Torch")
-                            await self.safePlaceBlock(wall_v,dv)
+                            self.safePlaceBlock(wall_v, dv)
                         z_torch += 6
                 z += 1
 
             # ...and back to the chest to update sign and restock
             self.speedMode = False
             self.mineActivity(area, z, f'Walking to Chest')
-            await area.walkToStart()
+            area.walkToStart()
             if self.dangerType:
                 s = self.dangerType
             else:
                 s = area.status
             self.mineActivity(area, z, f'Updating Sign')
-            txt = [f'Mine {area.directionStr()} {width}x{height}', f'Length: {z}', myDate(), s ]
-            self.updateSign(txt,tryonly=True)
+            txt = [
+                f"Mine {area.directionStr()} {width}x{height}",
+                f"Length: {z}",
+                botlib.myDate(),
+                s,
+            ]
+            self.updateSign(txt, tryonly=True)
 
         # Mining ended
         area.restock(self.miningEquipList)
@@ -635,11 +657,11 @@ class MineBot:
     # Mine a vertical shaft of N x N down to depth D
     #
 
-    async def shaftMine(self,d,min_y):
+    def shaftMine(self, d, min_y):
 
-        r = int( (checkIntArg(d, 1, 99)-1)/2)
+        r = int((botlib.checkIntArg(d, 1, 99) - 1) / 2)
         d = r*2+1
-        min_y = checkIntArg(min_y, -64, 320)
+        min_y = botlib.checkIntArg(min_y, -64, 320)
 
         if r == None or min_y == None:
             print(r,min_y)
@@ -647,7 +669,7 @@ class MineBot:
             return False
 
         area = workArea(self,d,d,1,notorch=True)
-        if not await area.initialize():
+        if not area.initialize():
             return False
         start = area.start
         area.restock(self.miningEquipList)
@@ -660,18 +682,26 @@ class MineBot:
 
                 if not self.stopActivity:
                     self.refreshActivity( [ f'Vertical Shaft {d}x{d} to lvl {min_y}',f'Blocks Mined: {area.blocks_mined}', f'Depth: {y}' ] )
-                    await area.walkToBlock(0,y,dz)
-                    await self.minePath(area.toWorld(0,y,dz),area.toWorld(-r,y,dz),2, area=area)
-                    await area.walkToBlock(0,y,dz)
-                    await self.minePath(area.toWorld(0,y,dz),area.toWorld( r,y,dz),2, area=area)
+                    area.walkToBlock(0, y, dz)
+                    self.minePath(
+                        area.toWorld(0, y, dz), area.toWorld(-r, y, dz), 2, area=area
+                    )
+                    area.walkToBlock(0, y, dz)
+                    self.minePath(
+                        area.toWorld(0, y, dz), area.toWorld(r, y, dz), 2, area=area
+                    )
 
                 if not self.stopActivity:
 
                     self.refreshActivity( [ f'Vertical Shaft {d}x{d} to lvl {min_y}',f'Blocks Mined: {area.blocks_mined}', f'Depth: {y}' ] )
-                    await area.walkToBlock(0,y,-dz)
-                    await self.minePath(area.toWorld(0,y,-dz),area.toWorld(-r,y,-dz),2, area=area)
-                    await area.walkToBlock(0,y,-dz)
-                    await self.minePath(area.toWorld(0,y,-dz),area.toWorld( r,y,-dz),2, area=area)
+                    area.walkToBlock(0, y, -dz)
+                    self.minePath(
+                        area.toWorld(0, y, -dz), area.toWorld(-r, y, -dz), 2, area=area
+                    )
+                    area.walkToBlock(0, y, -dz)
+                    self.minePath(
+                        area.toWorld(0, y, -dz), area.toWorld(r, y, -dz), 2, area=area
+                    )
 
                 if self.stopActivity:
                     break
@@ -680,7 +710,7 @@ class MineBot:
 
         return True
 
-    async def doMining(self,args):
+    def doMining(self, args):
 
         if len(args) == 0:
             self.chat('Need to specify type of mine. Try "fast", "3x3" or "5x5".')
@@ -688,31 +718,31 @@ class MineBot:
             mtype = args[0]
             if mtype == '3x3':
                 self.activity_name = "Mine 3x3"
-                await self.stripMine(3,3,5)
+                self.stripMine(3, 3, 5)
             elif mtype == 'tunnel3x3':
                 self.activity_name = "Tunnel 3x3"
-                await self.stripMine(3,3,0)
+                self.stripMine(3, 3, 0)
             elif mtype == '5x5':
                 self.activity_name = "Mine 5x5"
-                await self.stripMine(5,5,5)
+                self.stripMine(5, 5, 5)
             elif mtype == 'tunnel5x5':
                 self.activity_name = "Tunnel 5x5"
-                await self.stripMine(5,5,0)
+                self.stripMine(5, 5, 0)
             elif mtype == 'branch' or mtype == 'fast':
                 self.activity_name = "Branchmine"
-                await self.stripMine(1,5,5)
+                self.stripMine(1, 5, 5)
             elif mtype == 'room':
                 if len(args) < 4:
                     self.chat('Try: mine room <length> <width> <height>')
                 else:
                     self.activity_name = f'Mine Room {args[1]}x{args[2]}x{args[3]}'
-                    await self.roomMine(args[1],args[2],args[3])
+                    self.roomMine(args[1], args[2], args[3])
             elif mtype == 'shaft':
                 if len(args) < 3:
                     self.chat('Try: mine shaft <diameter> <layer of shaft bottom>')
                     self.activity_name = f'Mine Vertical Shaft {args[1]}x{args[1]} to level {args[2]}'
                 else:
-                    await self.shaftMine(args[1],args[2])
+                    self.shaftMine(args[1], args[2])
             else:
                 self.chat(f'I don\'t know how to mine a \'{mtype}\'.')
 

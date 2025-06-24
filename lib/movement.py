@@ -7,6 +7,7 @@ import time
 from javascript import require
 from math import sqrt, atan2, sin, cos
 import lib.botlib as botlib
+from lib.botlib import walkTime
 
 Vec3     = require('vec3').Vec3
 pathfinder = require('mineflayer-pathfinder')
@@ -25,14 +26,14 @@ class MovementManager:
 
     # Versatile blockAt, takes 3 coordinates or vector
 
-    async def blockAt(self, x, y=None, z=None):
+    def blockAt(self, x, y=None, z=None):
         if y:
             v = Vec3(x,y,z)
         else:
             v = x
-        return await self.bot.blockAt(v)
+        return self.bot.blockAt(v)
 
-    async def safeWalk(self, toPosition, radius=1):
+    def safeWalk(self, toPosition, radius=1):
         self.pdebug(f'    safeWalk to {toPosition.x} {toPosition.y} {toPosition.z}  r={radius}',4)
         if not toPosition:
             print('*** error: toPosition is not defined.')
@@ -45,66 +46,70 @@ class MovementManager:
             if p == None:
                 print('  *** error: pathfinder is None in safeWalk.')
                 return False
-            await p.setGoal(pathfinder.goals.GoalNear(toPosition.x,toPosition.y,toPosition.z,radius))
+            p.setGoal(
+                pathfinder.goals.GoalNear(
+                    toPosition.x, toPosition.y, toPosition.z, radius
+                )
+            )
         except Exception as e:
             print(f'*** error in safeWalk {e}')
             return False
-        t = walkTime(toPosition,self.bot.entity.position)
+        t = botlib.walkTime(toPosition, self.bot.entity.position)
         if not self.speedMode:
             time.sleep(t)
         return True
 
-    async def walkTo(self,x,y=None,z=None):
+    def walkTo(self,x,y=None,z=None):
         if hasattr(x, 'position') and x.position:
             v = Vec3(x.position.x,x.position.y,x.position.z)
-            await self.safeWalk(v,1)
+            self.safeWalk(v,1)
         elif not y:
-            await self.safeWalk(x,1)
+            self.safeWalk(x,1)
         else:
             v = Vec3(x,y,z)
-            await self.safeWalk(v,1)
+            self.safeWalk(v,1)
 
-    async def walkToBlock(self,x,y=None,z=None):
+    def walkToBlock(self,x,y=None,z=None):
         if hasattr(x, 'position') and x.position:
             v = Vec3(x.position.x+0.5,x.position.y,x.position.z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
         elif not y:
             v = Vec3(x.x+0.5,x.y,x.z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
         else:
             v = Vec3(x+0.5,y,z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
 
-    async def walkToBlock3(self,x,y=None,z=None):
+    def walkToBlock3(self,x,y=None,z=None):
         if hasattr(x, 'position') and x.position:
             v = Vec3(x.position.x+0.5,x.position.y,x.position.z+0.5)
-            await self.safeWalk(v,0.3)
+            self.safeWalk(v,0.3)
         elif not y:
             v = Vec3(x.x+0.5,x.y,x.z+0.5)
-            await self.safeWalk(v,0.3)
+            self.safeWalk(v,0.3)
         else:
             v = Vec3(x+0.5,y,z+0.5)
-            await self.safeWalk(v,0.3)
+            self.safeWalk(v,0.3)
 
     # Walks on top of this block
 
-    async def walkOnBlock(self,x,y=None,z=None):
+    def walkOnBlock(self,x,y=None,z=None):
         if hasattr(x, 'position') and x.position:
             v = Vec3(x.position.x+0.5,x.position.y+1,x.position.z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
         elif not y:
             v = Vec3(x.x+0.5,x.y+1,x.z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
         else:
             v = Vec3(x+0.5,y+1,z+0.5)
-            await self.safeWalk(v)
+            self.safeWalk(v)
 
     # this will attempt to walk on to block at v, and place a block in the direction d
 
-    async def safePlaceBlock(self,v,dv):
-        v_gap = addVec3(v,dv)
-        b     = await self.bot.blockAt(v)
-        b_gap = await self.bot.blockAt(v_gap)
+    def safePlaceBlock(self,v,dv):
+        v_gap = botlib.addVec3(v, dv)
+        b = self.bot.blockAt(v)
+        b_gap = self.bot.blockAt(v_gap)
 
         if b_gap.displayName not in self.empty_blocks:
             self.perror(f'cant place block in space occupied by {b_gap.displayName}.')
@@ -114,24 +119,24 @@ class MovementManager:
             self.perror(f'place {b_gap.displayName} @{v_gap.x}/{v_gap.y}/{v_gap.z} against {b.displayName} @{v.x}/{v.y}/{v.z}')
             return False
         try:
-            await self.bot.placeBlock(b,dv)
+            self.bot.placeBlock(b,dv)
             return True
         except Exception as e:
             self.pexception(f'{b_gap.displayName} @{v_gap.x}/{v_gap.y}/{v_gap.z} against {b.displayName} @{v.x}/{v.y}/{v.z}',e)
             return False
 
-    async def bridgeBlock(self, v, d):
+    def bridgeBlock(self, v, d):
 
-        v_gap = addVec3(v,d)
+        v_gap = botlib.addVec3(v, d)
 
-        b     = await self.bot.blockAt(v)
-        b_gap = await self.bot.blockAt(v_gap)
+        b = self.bot.blockAt(v)
+        b_gap = self.bot.blockAt(v_gap)
 
         d_inv = Vec3(-d.x,-d.y,-d.z)
 
         self.pdebug(f'  bridging {b_gap.displayName} @{v_gap.x}/{v_gap.y}/{v_gap.z} against {b.displayName} @{v.x}/{v.y}/{v.z}',2)
 
-        await self.walkToBlock(v.x,v.y+1,v.z)
+        self.walkToBlock(v.x,v.y+1,v.z)
         time.sleep(1)
 
         # Code from mineflayer.pathfinder
@@ -142,23 +147,23 @@ class MovementManager:
 
         targetYaw = atan2(d.x, d.z)
         targetPitch = -1.421
-        viewVector = getViewVector(targetPitch, targetYaw)
+        viewVector = botlib.getViewVector(targetPitch, targetYaw)
         pos = self.bot.entity.position
         if not pos:
             print("*** error: position is None in bridgeBlock.")
             return False
         p = pos.offset(viewVector.x, viewVector.y, viewVector.z)
-        await self.bot.lookAt(p, True)
-        await self.bot.setControlState('sneak', True)
+        self.bot.lookAt(p, True)
+        self.bot.setControlState('sneak', True)
         time.sleep(0.5)
-        await self.bot.setControlState('back', True)
+        self.bot.setControlState('back', True)
         time.sleep(0.5)
-        await self.bot.setControlState('back',False)
-        if not await self.safePlaceBlock(v,d):
+        self.bot.setControlState('back',False)
+        if not self.safePlaceBlock(v,d):
             return False
 
-        await self.walkToBlock(v.x,v.y+1,v.z)
-        await self.bot.setControlState('sneak',False)
+        self.walkToBlock(v.x,v.y+1,v.z)
+        self.bot.setControlState('sneak',False)
         time.sleep(0.5)
         return
 
@@ -166,7 +171,7 @@ class MovementManager:
     #  Find closest (taxi geometry) block with specific content
     #  target can be a list or an item
 
-    async def findClosestBlock(self,target,xz_radius=2,y_radius=1,metadata=None,spaceabove=False):
+    def findClosestBlock(self,target,xz_radius=2,y_radius=1,metadata=None,spaceabove=False):
         best_block = None
         best_dist  = 999
 
@@ -176,14 +181,11 @@ class MovementManager:
             target = [target]
 
         # Search larger and larger rectangles
-        
-
-
 
         for r in range(0,xz_radius+1):
             for dx, dz in botlib.rectangleBorder(r, r):
                 for dy in range(-y_radius,y_radius+1):
-                    b = self.bot.block_at(Vec3(p.x + dx, p.y + dy, p.z + dz))
+                    b = self.bot.blockAt(Vec3(p.x + dx, p.y + dy, p.z + dz))
                     if not b:
                         continue
                     # print(dx,dy,dz,b.displayName,target)
@@ -191,7 +193,7 @@ class MovementManager:
                         if metadata and b.metadata != metadata:
                             continue
                         if spaceabove:
-                            b_above = self.bot.block_at(
+                            b_above = self.bot.blockAt(
                                 Vec3(p.x + dx, p.y + dy + 1, p.z + dz)
                             )
                             if not b_above or b_above.type != 0:
@@ -205,11 +207,11 @@ class MovementManager:
                 return best_block
         return False
 
-    async def gotoLocation(self,l):
+    def gotoLocation(self,l):
         if not l in self.myLocations:
             print(f'*** error: cant find location {l}')
 
         c = self.myLocations[l]
         print(f'moving to {l}')
-        await self.safeWalk(Vec3(c[0], c[1], c[2]), 1 )
+        self.safeWalk(Vec3(c[0], c[1], c[2]), 1 )
         print("done.")

@@ -196,26 +196,29 @@ if __name__ == "__main__":
     @pybot.bot.on_spawn
     def handle_spawn():
         print("Bot spawned, waiting for chunks to load...")
-        import asyncio
-        import threading
+        
 
-        async def run_async():
-            print("Mining thread started!")
-            # Give a moment for debugger to attach if needed
-            # import time
-            # await pybot.bot
-            
-
-            # print("Waiting 10 seconds for debugger attachment...")
-            # time.sleep(3)
-            # breakpoint()
-            await pybot.stripMine(3, 3, 5)
 
         def run_sync():
+            print("Mining thread started!")
+            pybot.stripMine(3, 3, 5)
+            # def run_async():
+                # Give a moment for debugger to attach if needed
+                # import time
+                # await pybot.bot
+                
+
+                # print("Waiting 10 seconds for debugger attachment...")
+                # time.sleep(3)
+                # breakpoint()
+                
+            # import asyncio
             # Optional: wait for debugger
             # debugpy.debug_this_thread()
             # breakpoint()
-            asyncio.run(run_async())
+            # asyncio.run(run_async())
+            
+        import threading
         time.sleep(1)
         thread = threading.Thread(target=run_sync)
         thread.start()
