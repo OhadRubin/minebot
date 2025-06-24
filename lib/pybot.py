@@ -181,6 +181,7 @@ if __name__ == "__main__":
         time.sleep(1)
     
     pybot.stripMine(3, 3, 5)
+    print("im done")
 
     @On(pybot.bot, 'chat')
     def onChat(sender, message, this, *rest):
