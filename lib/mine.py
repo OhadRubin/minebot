@@ -547,6 +547,7 @@ class MineBot:
     #
 
     def stripMine(self, width=3, height=3, valrange=3):
+        print(f"CRAZY DEBUG: stripMine called with width={width}, height={height}, valrange={valrange}")
         # print(
         #     javascript.eval_js("""bot.findBlock({ matching: [bot.registries.blocksByName["Chest"].id], maxDistance: 16, count: 1, })""")
         # )
@@ -554,9 +555,16 @@ class MineBot:
 
         z_torch = 0
         z =0
+        print(f"CRAZY DEBUG: Creating workArea with width={width}, height={height}, depth=99999")
         area = workArea(self,width,height,99999)
-        if not area.initialize():
+        print(f"CRAZY DEBUG: workArea created: {area}")
+        print(f"CRAZY DEBUG: Calling area.initialize()...")
+        init_result = area.initialize()
+        print(f"CRAZY DEBUG: area.initialize() returned: {init_result}")
+        if not init_result:
+            print(f"CRAZY DEBUG: area.initialize() failed, returning False from stripMine")
             return False
+        print(f"CRAZY DEBUG: area.initialize() succeeded! Continuing with mining...")
         self.speedMode = True   # explore fast until we find something
 
         self.refreshActivity([f'Mining started'])
