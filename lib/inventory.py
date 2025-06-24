@@ -17,6 +17,14 @@ def js_Minecart_With_Chest(entity):
     else:
         return False
 
+def find_nearest(pybot, displayname, max_distance=100, count=200):
+    chest_blocks = pybot.bot.findBlocks( { "matching": pybot.displayname_to_id[displayname], "maxDistance": max_distance, "count": count, } )
+    chest_blocks = list(iter(chest_blocks))
+    if chest_blocks and chest_blocks[0]:
+        return pybot.bot.blockAt(chest_blocks[0])
+    else:
+        return None
+
 class Chest:
 
     def __init__(self,pybot,chesttype="Chest",silent=False):
@@ -25,31 +33,11 @@ class Chest:
         # How we find it depends on the type:
         # Chests are blocks
         if chesttype == "Chest":
-            for _ in range(2):
-                chest_blocks = self.pybot.bot.js_bot.findBlocks(
-                    {
-                        "matching": self.pybot.bot.displayname_to_id["Chest"],
-                        "maxDistance": 2,
-                        "count": 1,
-                    }
-                )
-                chest_blocks = list(iter(chest_blocks))
-                if chest_blocks and chest_blocks[0]:
-                    chest_pos = chest_blocks[0]
-                    print(f"{chest_pos=}")
-                    print(f"{chest_blocks=}")
-                    # if chest_pos: 
-                    self.object = self.pybot.bot.blockAt(chest_pos)
-                    if self.object:
-                        break
-                else:
-                    self.object = None
-                self.chestType = chesttype
-            else:
-                assert False, "Can't find chest"
+            self.object = find_nearest(pybot, "Chest", 200, 1)
+            self.chestType = chesttype
         # Minecarts are entities
         elif chesttype == "Minecart with Chest":
-            self.object = pybot.bot.nearest_entity(js_Minecart_With_Chest)
+            self.object = pybot.bot.nearestEntity(js_Minecart_With_Chest)
             if self.object:
                 # print(self.object, self.pybot.bot.entity)
                 if lenVec3(subVec3(self.object.position, self.pybot.bot.entity.position)) > 2:
@@ -64,7 +52,7 @@ class Chest:
         if self.container:
             return True
         # print(self.object)
-        self.container = self.pybot.bot.open_container(self.object)
+        self.container = self.pybot.bot.openContainer(self.object)
         if not self.container:
             self.pybot.perror("Can't open chest.")
             return False
@@ -329,21 +317,21 @@ class InventoryManager:
 
     def checkInHand(self,item_arg):
 
-        if not self.bot.held_item:
+        if not self.bot.heldItem:
             return False
 
         item_type, item_name = self.itemTypeAndName(item_arg)
 
-        if self.bot.held_item.type == item_type:
+        if self.bot.heldItem.type == item_type:
             return True
         else:
             return False
 
     def itemInHand(self):
 
-        if not self.bot.held_item:
+        if not self.bot.heldItem:
             return None, "None"
-        return self.bot.held_item.type, self.bot.held_item.displayName
+        return self.bot.heldItem.type, self.bot.heldItem.displayName
     #
     # Equip an Item into the main hand.
     #
@@ -424,7 +412,7 @@ class InventoryManager:
         return None
 
     def printEquipment(self):
-        print("In Hand: ", bot.held_item.displayName)
+        print("In Hand: ", bot.heldItem.displayName)
 
     #
     # Update a sign. This requires destroying it first.
@@ -567,7 +555,7 @@ class InventoryManager:
     def transferToChest(self, target):
 
         c1 = Chest(self)
-        if c1.object == None:
+        if c1.block == None:
             self.perror("Can't transfer chest contents - no chest found near starting point")
             return False
 
@@ -579,7 +567,7 @@ class InventoryManager:
             c1.open()
             self.pdebug("Taking:",3)
             slots = 0
-            for i in c1.container.containerItems():
+            for i in c1.chestObj.containerItems():
                 if i.count > 0:
                     c1.withdrawItem(i.type,i.count)
                     time.sleep(0.2)
@@ -595,6 +583,6 @@ class InventoryManager:
             # Drop all into the destination chest
             self.gotoLocation(target)
             self.depositToChest()
-            self.safeWalk(c1.object.position)
+            self.safeWalk(chest_block.position)
 
         self.stopActivity()

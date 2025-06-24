@@ -6,7 +6,7 @@
 #
 
 import javascript
-from javascript import require, once, off
+from javascript import require, On, Once, AsyncTask, once, off
 import time
 import asyncio
 import argparse
@@ -21,25 +21,13 @@ from lib.combat import CombatBot
 from lib.gather import GatherBot
 from src.bot import create_bot
 
+from collections import defaultdict
 
-#
 # Main Bot Class
 #
 # Additional Methods are added via Mixin inheritance and are in the various modules
 #
 
-# import debugpy
-# from debugpy import breakpoint
-import os
-
-
-# # def setup_debugpy(host="localhost", port=5678):
-
-# import debugpy
-# print("Setting up debugpy")
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
-# print("Debugpy setup complete")
 
 class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementManager, InventoryManager):
 
@@ -56,38 +44,41 @@ class PyBot(ChatBot, FarmBot, MineBot, GatherBot, BuildBot, CombatBot, MovementM
 
         self.speedMode = False # Move fast 
 
-        # Create bot using working wrapper
-        options = {
+        mineflayer = require('mineflayer')
+
+        bot = mineflayer.createBot(
+            {
             'host': self.account['host'],
             'port': self.account.get('port', 25565),
             'username': self.account['user'],
             'auth': 'microsoft' if 'password' in self.account else 'offline',
             'version': self.account['version'],
             'hideErrors': False,
-        }
-        if 'password' in self.account:
-            options['password'] = self.account['password']
+            } )
 
-        self.bot = create_bot(options)
+        self.mcData   = require('minecraft-data')(bot.version)
+        self.Block    = require('prismarine-block')(bot.version)
+        self.Item     = require('prismarine-item')(bot.version)
+        self.Vec3     = require('vec3').Vec3
 
-        # Access JavaScript objects through the bot wrapper
-        self.mcData = self.bot.mc_data
-        # Import Vec3 at module level like in working src/bot.py
-        from src.bot import Vec3
-        self.Vec3 = Vec3
-
-        # TODO: Original JavaScript setup - may need to restore some functionality:
-        # mineflayer = require('mineflayer')
-        # bot = mineflayer.createBot({...})
-        self.mcData = require("minecraft-data")(self.bot.bot.version)
-        self.Block = require("prismarine-block")(self.bot.bot.version)
-        self.Item = require("prismarine-item")(self.bot.bot.version)
-        self.Vec3 = require("vec3").Vec3
-        pathfinder = require("mineflayer-pathfinder")
-        self.bot.bot.loadPlugin(pathfinder.pathfinder)
-        movements = pathfinder.Movements(self.bot.bot, self.mcData)
+        # Setup for the pathfinder plugin
+        pathfinder = require('mineflayer-pathfinder')
+        bot.loadPlugin(pathfinder.pathfinder)
+        # Create a new movements class
+        movements = pathfinder.Movements(bot, self.mcData)
         movements.blocksToAvoid.delete(self.mcData.blocksByName.wheat.id)
-        self.bot.bot.pathfinder.setMovements(movements)
+        bot.pathfinder.setMovements(movements)
+        self.bot = bot
+        
+        blocksByName = self.bot.registry.blocksByName
+        # blocksByName = iter(blocksByName)
+        # print(dir(blocksByName))
+        keys = iter(blocksByName)
+        bbn = {k: self.bot.registry.blocksByName[k] for k in keys}
+        displayname_to_id = defaultdict(list)
+        for k,v in bbn.items():
+            displayname_to_id[v.displayName].append(v.id)
+        self.displayname_to_id = displayname_to_id
 
         # Initialize modules
         # Python makes this hard as __init__ of mixin classes is not called automatically
@@ -160,7 +151,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='python pybot.py')
     parser.add_argument('--nowindow', action='store_true', help='run in the background, i.e. without the Tk graphical UI')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='verbosity from 1-5. Use as -v, -vv, -vvv etc.')
-    parser.add_argument("--message", "-m", type=str, help="override master player name")
+    parser.add_argument('--message', '-m', action='store', default=None, help='message to send to the bot')
     args = parser.parse_args()
     argsd = vars(args)
 
@@ -186,54 +177,23 @@ if __name__ == "__main__":
     #
 
     # Report status
-    # while not pybot.bot.health:
-    #     time.sleep(1)
-
-    # @pybot.bot.on_chat
-    # def handle_chat(sender, message, this, *rest):
-    #     pybot.handleChat(sender, message, this, *rest)
-
-    @pybot.bot.on_spawn
-    def handle_spawn():
-        print("Bot spawned, waiting for chunks to load...")
-        
-
-
-        def run_sync():
-            print("Mining thread started!")
-            pybot.stripMine(3, 3, 5)
-            # def run_async():
-                # Give a moment for debugger to attach if needed
-                # import time
-                # await pybot.bot
-                
-
-                # print("Waiting 10 seconds for debugger attachment...")
-                # time.sleep(3)
-                # breakpoint()
-                
-            # import asyncio
-            # Optional: wait for debugger
-            # debugpy.debug_this_thread()
-            # breakpoint()
-            # asyncio.run(run_async())
-            
-        import threading
+    while not pybot.bot.health:
         time.sleep(1)
-        thread = threading.Thread(target=run_sync)
-        thread.start()
+    
+    pybot.stripMine(3, 3, 5)
 
-    # @pybot.bot.on_health
-    # def handle_health():
-    #     pybot.healthCheck()
+    @On(pybot.bot, 'chat')
+    def onChat(sender, message, this, *rest):
+        pybot.handleChat(sender, message, this, *rest)
 
-    # Initial healing - run in a separate thread since it may take time
-    # def run_initial_heal():
-    #     asyncio.run(pybot.healToFull())
 
-    # import threading
-    # heal_thread = threading.Thread(target=run_initial_heal)
-    # heal_thread.start()
+    @On(pybot.bot, 'health')
+    def onHealth(arg):
+        pybot.healthCheck()
+
+    @AsyncTask(start=True)
+    def asyncInitialHeal(task):
+        pybot.healToFull()
 
     if pybot.debug_lvl >= 4:
         pybot.printInventory()

@@ -59,12 +59,12 @@ class workArea:
             self.origin = self.start
 
         print("starting findBlocks")
-        print(self.pybot.bot.js_bot.entity.position)
+        print(self.pybot.bot.entity.position)
         torch_ids = (
-            self.pybot.bot.displayname_to_id["Redstone Torch"]
-            + self.pybot.bot.displayname_to_id["Torch"]
+            self.pybot.displayname_to_id["Redstone Torch"]
+            + self.pybot.displayname_to_id["Torch"]
         )
-        torch_blocks = self.pybot.bot.js_bot.findBlocks(
+        torch_blocks = self.pybot.bot.findBlocks(
             {
                 "matching": torch_ids,
                 "maxDistance": 100,
@@ -73,9 +73,9 @@ class workArea:
         )
         torch_blocks = list(iter(torch_blocks))
 
-        chest_blocks = self.pybot.bot.js_bot.findBlocks(
+        chest_blocks = self.pybot.bot.findBlocks(
             {
-                "matching": self.pybot.bot.displayname_to_id["Chest"],
+                "matching": self.pybot.displayname_to_id["Chest"],
                 "maxDistance": 100,
                 "count": 200,
             },
@@ -135,11 +135,11 @@ class workArea:
 
         # Direction of the Area
 
-        # torch_blocks = self.pybot.bot.js_bot.findBlocks(
+        # torch_blocks = self.pybot.bot.findBlocks(
         #     {
         #         "matching": [
-        #             self.pybot.bot.displayname_to_id["Redstone Torch"],
-        #             self.pybot.bot.displayname_to_id["Torch"],
+        #             self.pybot.displayname_to_id["Redstone Torch"],
+        #             self.pybot.displayname_to_id["Torch"],
         #         ],
         #         "maxDistance": 10,
         #         "count": 10,
