@@ -103,7 +103,8 @@ class workArea:
             self.pybot.chat(
                 "Can't find starting position. Place a chest and torch on the ground to mark the direction."
             )
-            assert False, "crashing"
+            print("THEORY_4_DEBUG: No chest+torch setup found, returning False instead of crashing")
+            return False
 
         # if not self.start_chest:
         #     self.pybot.chat("Can't find starting position. Place a chest on the ground to mark it.")
