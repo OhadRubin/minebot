@@ -42,14 +42,24 @@ class workArea:
 
     def initialize(self):
         """Async initialization that finds chest and torch"""
+        print("=== CRAZY DEBUG: Starting workArea.initialize() ===")
+        print(f"CRAZY DEBUG: self.notorch = {self.notorch}")
+        print(f"CRAZY DEBUG: Bot position = {self.pybot.bot.entity.position}")
+        print(f"CRAZY DEBUG: Bot health = {self.pybot.bot.health}")
+        print(f"CRAZY DEBUG: Work area dimensions - width:{self.width} height:{self.height} depth:{self.depth}")
+        
         # Find the starting chest
         # self.start_chest = self.pybotk( #
         # self.start_chest = self.pybot.findClosestBlock(
         #     "Chest", xz_radius=6, y_radius=20
         # )
         # print(f"{self.start_chest=}")
+        print("CRAZY DEBUG: Checking notorch assertion...")
         assert not self.notorch, "Not yet implemented"
+        print("CRAZY DEBUG: Passed notorch assertion")
+        
         if self.notorch:
+            print("CRAZY DEBUG: In notorch branch (this shouldn't happen)")
             # Area with arbitrary direction, we pick point in front of chest
             p = self.start_chest.getProperties()
             self.d = botlib.strDirection(p["facing"])
@@ -58,13 +68,28 @@ class workArea:
             # Origin
             self.origin = self.start
 
+        print("CRAZY DEBUG: About to start findBlocks")
         print("starting findBlocks")
         print(self.pybot.bot.entity.position)
+        
+        # Check what's in displayname_to_id
+        print("CRAZY DEBUG: Full displayname_to_id dict keys:")
+        all_keys = list(self.pybot.displayname_to_id.keys())
+        print(f"CRAZY DEBUG: Total keys in displayname_to_id: {len(all_keys)}")
+        for i, key in enumerate(sorted(all_keys)):
+            if i < 20:  # Print first 20 keys
+                print(f"CRAZY DEBUG: displayname_to_id['{key}'] = {self.pybot.displayname_to_id[key]}")
         
         # THEORY_5_DEBUG: Check what block IDs we're searching for
         print(f"THEORY_5_DEBUG: Torch IDs = {self.pybot.displayname_to_id.get('Torch', 'NOT_FOUND')}")
         print(f"THEORY_5_DEBUG: Redstone Torch IDs = {self.pybot.displayname_to_id.get('Redstone Torch', 'NOT_FOUND')}")
         print(f"THEORY_5_DEBUG: Chest IDs = {self.pybot.displayname_to_id.get('Chest', 'NOT_FOUND')}")
+        
+        print("CRAZY DEBUG: Building torch_ids...")
+        redstone_torch_ids = self.pybot.displayname_to_id.get("Redstone Torch", [])
+        torch_ids_basic = self.pybot.displayname_to_id.get("Torch", [])
+        print(f"CRAZY DEBUG: redstone_torch_ids = {redstone_torch_ids}")
+        print(f"CRAZY DEBUG: torch_ids_basic = {torch_ids_basic}")
         
         torch_ids = (
             self.pybot.displayname_to_id["Redstone Torch"]
@@ -72,6 +97,7 @@ class workArea:
         )
         print(f"THEORY_5_DEBUG: Combined torch_ids = {torch_ids}")
         
+        print("CRAZY DEBUG: About to call bot.findBlocks for torches...")
         torch_blocks = self.pybot.bot.findBlocks(
             {
                 "matching": torch_ids,
@@ -79,8 +105,14 @@ class workArea:
                 "count": 200,
             },
         )
+        print(f"CRAZY DEBUG: Raw torch_blocks result = {torch_blocks}")
         torch_blocks = list(iter(torch_blocks))
+        print(f"CRAZY DEBUG: torch_blocks after list conversion = {torch_blocks}")
 
+        print("CRAZY DEBUG: About to call bot.findBlocks for chests...")
+        chest_ids = self.pybot.displayname_to_id["Chest"]
+        print(f"CRAZY DEBUG: chest_ids = {chest_ids}")
+        
         chest_blocks = self.pybot.bot.findBlocks(
             {
                 "matching": self.pybot.displayname_to_id["Chest"],
@@ -88,7 +120,10 @@ class workArea:
                 "count": 200,
             },
         )
+        print(f"CRAZY DEBUG: Raw chest_blocks result = {chest_blocks}")
         chest_blocks = list(iter(chest_blocks))
+        print(f"CRAZY DEBUG: chest_blocks after list conversion = {chest_blocks}")
+        
         print(f"{len(chest_blocks)=}")
         print(f"{len(torch_blocks)=}")
         
@@ -98,32 +133,54 @@ class workArea:
             "maxDistance": 10,
             "count": 100,
         })
+        print(f"CRAZY DEBUG: all_nearby_blocks = {all_nearby_blocks}")
         nearby_block_types = set()
         for block_pos in all_nearby_blocks:
+            print(f"CRAZY DEBUG: Checking block at {block_pos}")
             block = self.pybot.bot.blockAt(block_pos)
-            if block and block.displayName != "Air":
-                nearby_block_types.add(block.displayName)
+            print(f"CRAZY DEBUG: Block object = {block}")
+            if block:
+                print(f"CRAZY DEBUG: Block displayName = {getattr(block, 'displayName', 'NO_DISPLAY_NAME')}")
+                if hasattr(block, 'displayName') and block.displayName != "Air":
+                    nearby_block_types.add(block.displayName)
         print(f"THEORY_5_DEBUG: Nearby block types = {sorted(nearby_block_types)}")
+        
+        print("CRAZY DEBUG: Setting self.start_chest = None and starting search loop...")
         self.start_chest = None
-        for chest in chest_blocks:
-            for torch in torch_blocks:
+        print(f"CRAZY DEBUG: Starting nested loop - {len(chest_blocks)} chests x {len(torch_blocks)} torches")
+        
+        for i, chest in enumerate(chest_blocks):
+            print(f"CRAZY DEBUG: Checking chest {i}: {chest}")
+            for j, torch in enumerate(torch_blocks):
+                print(f"CRAZY DEBUG: Checking torch {j}: {torch}")
                 if chest is None or torch is None:
+                    print(f"CRAZY DEBUG: Skipping null chest or torch")
                     continue
+                print(f"CRAZY DEBUG: Computing distance between chest {chest} and torch {torch}")
                 d = subVec3(chest, torch)
+                print(f"CRAZY DEBUG: subVec3 result d = {d}")
                 L = lenVec3(d)
+                print(f"CRAZY DEBUG: lenVec3 result L = {L}")
+                print(f"CRAZY DEBUG: chest.y = {chest.y}, torch.y = {torch.y}")
                 print(f"{chest}, {torch}, {L=}")
                 if L == 1 and chest.y == torch.y:
+                    print(f"CRAZY DEBUG: FOUND MATCH! chest={chest}, torch={torch}")
                     self.start_chest = chest
                     self.start_torch = torch
                     break
+                else:
+                    print(f"CRAZY DEBUG: No match - L={L} (need 1), same_y={chest.y == torch.y}")
 
             # if chest.position.distanceTo(torch.position) < 1 and chest.position.y == torch.position.y:
             if self.start_chest:
+                print(f"CRAZY DEBUG: Breaking outer loop - found match!")
                 break
         else:
+            print(f"CRAZY DEBUG: No matching chest+torch found in nested loop")
             self.pybot.chat(
                 "Can't find starting position. Place a chest and torch on the ground to mark the direction."
             )
+            print(f"CRAZY DEBUG: About to assert False and crash...")
             assert False, "crashing"
 
         # if not self.start_chest:
@@ -155,6 +212,9 @@ class workArea:
         #     return False
 
         # Direction of the Area
+        print(f"CRAZY DEBUG: Found valid chest+torch pair! Now computing direction...")
+        print(f"CRAZY DEBUG: self.start_chest = {self.start_chest}")
+        print(f"CRAZY DEBUG: self.start_torch = {self.start_torch}")
 
         # torch_blocks = self.pybot.bot.findBlocks(
         #     {
@@ -168,32 +228,49 @@ class workArea:
         # )
         # print(f"{torch_blocks=}")
 
+        print(f"CRAZY DEBUG: Computing direction vector from torch to chest...")
         self.d = subVec3(self.start_torch, self.start_chest)
+        print(f"CRAZY DEBUG: Direction vector self.d = {self.d}")
         # if lenVec3(self.d) != 1:
         #     self.pybot.chat("Can't find starting position. Torch is not next to chest.")
         #     return False
 
+        print(f"CRAZY DEBUG: Setting self.start = self.start_chest")
         self.start = self.start_chest # findBlocks actually returns a Vec3 so it's already a position
+        print(f"CRAZY DEBUG: self.start = {self.start}")
         # self.start = self.start_chest.position
 
         # Origin
-        self.origin = self.pybot.Vec3(
-            self.start.x + 2 * self.d.x, self.start.y, self.start.z + 2 * self.d.z
-        )
+        print(f"CRAZY DEBUG: Computing origin point...")
+        origin_x = self.start.x + 2 * self.d.x
+        origin_y = self.start.y
+        origin_z = self.start.z + 2 * self.d.z
+        print(f"CRAZY DEBUG: Origin calculation: start=({self.start.x},{self.start.y},{self.start.z}), d=({self.d.x},{self.d.y},{self.d.z})")
+        print(f"CRAZY DEBUG: Origin coords: ({origin_x},{origin_y},{origin_z})")
+        self.origin = self.pybot.Vec3(origin_x, origin_y, origin_z)
+        print(f"CRAZY DEBUG: self.origin = {self.origin}")
 
         # Vector directions
+        print(f"CRAZY DEBUG: Setting up direction vectors...")
         self.forwardVector = self.d
         self.backwardVector = botlib.invVec3(self.d)
+        print(f"CRAZY DEBUG: forwardVector = {self.forwardVector}")
+        print(f"CRAZY DEBUG: backwardVector = {self.backwardVector}")
 
         # Note that we flip build area vs. world coordinates. Left Handed vs Right handed.
         self.leftVector = botlib.rotateLeft(self.d)
         self.rightVector = botlib.rotateRight(self.d)
+        print(f"CRAZY DEBUG: leftVector = {self.leftVector}")
+        print(f"CRAZY DEBUG: rightVector = {self.rightVector}")
 
         self.latx = self.rightVector.x
         self.latz = self.rightVector.z
+        print(f"CRAZY DEBUG: latx = {self.latx}, latz = {self.latz}")
 
         # Done. Set flag.
+        print(f"CRAZY DEBUG: Setting self.valid = True and returning True")
         self.valid = True
+        print(f"CRAZY DEBUG: workArea.initialize() completed successfully!")
         return True
 
     def xRange(self):
