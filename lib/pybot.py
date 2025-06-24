@@ -180,7 +180,6 @@ if __name__ == "__main__":
     while not pybot.bot.health:
         time.sleep(1)
     
-    print("THEORY_4_DEBUG: Attempting stripMine with graceful error handling")
     pybot.stripMine(3, 3, 5)
     print("im done")
 

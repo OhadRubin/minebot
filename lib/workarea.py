@@ -60,10 +60,18 @@ class workArea:
 
         print("starting findBlocks")
         print(self.pybot.bot.entity.position)
+        
+        # THEORY_5_DEBUG: Check what block IDs we're searching for
+        print(f"THEORY_5_DEBUG: Torch IDs = {self.pybot.displayname_to_id.get('Torch', 'NOT_FOUND')}")
+        print(f"THEORY_5_DEBUG: Redstone Torch IDs = {self.pybot.displayname_to_id.get('Redstone Torch', 'NOT_FOUND')}")
+        print(f"THEORY_5_DEBUG: Chest IDs = {self.pybot.displayname_to_id.get('Chest', 'NOT_FOUND')}")
+        
         torch_ids = (
             self.pybot.displayname_to_id["Redstone Torch"]
             + self.pybot.displayname_to_id["Torch"]
         )
+        print(f"THEORY_5_DEBUG: Combined torch_ids = {torch_ids}")
+        
         torch_blocks = self.pybot.bot.findBlocks(
             {
                 "matching": torch_ids,
@@ -83,6 +91,19 @@ class workArea:
         chest_blocks = list(iter(chest_blocks))
         print(f"{len(chest_blocks)=}")
         print(f"{len(torch_blocks)=}")
+        
+        # THEORY_5_DEBUG: Let's see what blocks ARE available nearby
+        print("THEORY_5_DEBUG: Searching for any blocks within 10 blocks to see what exists...")
+        all_nearby_blocks = self.pybot.bot.findBlocks({
+            "maxDistance": 10,
+            "count": 100,
+        })
+        nearby_block_types = set()
+        for block_pos in all_nearby_blocks:
+            block = self.pybot.bot.blockAt(block_pos)
+            if block and block.displayName != "Air":
+                nearby_block_types.add(block.displayName)
+        print(f"THEORY_5_DEBUG: Nearby block types = {sorted(nearby_block_types)}")
         self.start_chest = None
         for chest in chest_blocks:
             for torch in torch_blocks:
@@ -103,8 +124,7 @@ class workArea:
             self.pybot.chat(
                 "Can't find starting position. Place a chest and torch on the ground to mark the direction."
             )
-            print("THEORY_4_DEBUG: No chest+torch setup found, returning False instead of crashing")
-            return False
+            assert False, "crashing"
 
         # if not self.start_chest:
         #     self.pybot.chat("Can't find starting position. Place a chest on the ground to mark it.")
